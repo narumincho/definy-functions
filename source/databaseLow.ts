@@ -4,6 +4,15 @@ import * as firestore from "@google-cloud/firestore";
 import * as stream from "stream";
 import * as firestoreType from "definy-firestore-type";
 
+const sampleUser: firestoreType.User = {
+  createdAt: firestore.Timestamp.now(),
+  branchIds: ["fewwafaw" as firestoreType.BranchId],
+  imageHash: "sfaweeaw" as firestoreType.ImageHash,
+  introduction: "自己紹介" as firestoreType.UserIntroduction,
+  likedProjectIds: [],
+  name: "ユーザー名" as firestoreType.UserName
+};
+
 const app = admin.initializeApp();
 const dataBase = app.firestore();
 const storageDefaultBucket = app.storage().bucket();
