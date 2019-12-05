@@ -7,6 +7,6 @@
     "moduleResolution": "node",
     "removeComments": true,
     "newLine": "LF",
-    "outDir": "../distribution"
+    "outDir": "distribution"
   }
 }
