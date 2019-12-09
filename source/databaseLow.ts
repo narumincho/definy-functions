@@ -6,7 +6,7 @@ import * as firestoreType from "definy-firestore-type";
 import * as typedFirestore from "typed-firestore";
 
 const app = admin.initializeApp();
-// TODO
+
 const dataBase = (app.firestore() as unknown) as typedFirestore.TypedFirebaseFirestore<
   firestoreType.Firestore
 >;
