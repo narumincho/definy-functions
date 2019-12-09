@@ -3,18 +3,13 @@ import * as type from "./type";
 import * as firestore from "@google-cloud/firestore";
 import * as stream from "stream";
 import * as firestoreType from "definy-firestore-type";
-
-const sampleUser: firestoreType.User = {
-  createdAt: firestore.Timestamp.now(),
-  branchIds: ["fewwafaw" as firestoreType.BranchId],
-  imageHash: "sfaweeaw" as firestoreType.ImageHash,
-  introduction: "自己紹介" as firestoreType.UserIntroduction,
-  likedProjectIds: [],
-  name: "ユーザー名" as firestoreType.UserName
-};
+import * as typedFirestore from "typed-firestore";
 
 const app = admin.initializeApp();
-const dataBase = app.firestore();
+// TODO
+const dataBase = (app.firestore() as unknown) as typedFirestore.TypedFirebaseFirestore<
+  firestoreType.Firestore
+>;
 const storageDefaultBucket = app.storage().bucket();
 
 const userCollection = dataBase.collection("user");
