@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/jsonwebtoken": "^8.3.5",
     "@types/node": "^12.12.14",
-    "definy-firestore-type": "0.0.4",
+    "definy-firestore-type": "0.0.10",
     "typed-firestore": "0.0.6",
     "typescript": "^3.7.3"
   }
