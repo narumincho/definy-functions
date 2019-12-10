@@ -2,6 +2,7 @@ import * as databaseLow from "./databaseLow";
 import * as type from "./type";
 import axios, { AxiosResponse } from "axios";
 import { URL } from "url";
+import * as definyFirestoreType from "definy-firestore-type";
 
 /* ==========================================
                     User
@@ -47,11 +48,11 @@ export const saveUserImageFromUrl = async (url: URL): Promise<string> => {
  * @param logInServiceAndId
  */
 export const getUserFromLogInService = async (
-  logInServiceAndId: type.LogInServiceAndId
+  logInServiceAndId: definyFirestoreType.LogInServiceAndId
 ): Promise<(UserLowCost & { lastAccessToken: string }) | null> => {
-  const userDataAndId = (
-    await databaseLow.searchUsers("logInServiceAndId", "==", logInServiceAndId)
-  )[0];
+  const userDataAndId = await databaseLow.searchUserByLogInServiceAndId(
+    logInServiceAndId
+  );
   if (userDataAndId === undefined) {
     return null;
   }

@@ -2,22 +2,23 @@ import * as admin from "firebase-admin";
 import * as type from "./type";
 import * as firestore from "@google-cloud/firestore";
 import * as stream from "stream";
-import * as firestoreType from "definy-firestore-type";
-import * as typedFirestore from "typed-firestore";
+import * as definyFirestoreType from "definy-firestore-type";
+import * as typedFirestore from "typed-admin-firestore";
 
 const app = admin.initializeApp();
 
-const dataBase = (app.firestore() as unknown) as typedFirestore.TypedFirebaseFirestore<
-  firestoreType.Firestore
+const dataBase = (app.firestore() as unknown) as typedFirestore.Firestore<
+  definyFirestoreType.Firestore
 >;
 const storageDefaultBucket = app.storage().bucket();
 
 const userCollection = dataBase.collection("user");
+const UserSecretCollection = dataBase.collection("userSecret");
 const accessTokenCollection = dataBase.collection("accessToken");
 const collectionFromLogInState = (
-  logInService: firestoreType.SocialLoginService
-): typedFirestore.TypedCollectionReference<{
-  doc: firestoreType.State;
+  logInService: definyFirestoreType.SocialLoginService
+): typedFirestore.CollectionReference<{
+  doc: definyFirestoreType.State;
   col: {};
 }> => {
   switch (logInService) {
@@ -46,9 +47,9 @@ const partCollection = dataBase.collection("partDefSnapshot");
  * @returns ユーザーのID
  */
 export const addUser = async (
-  userId: firestoreType.UserId,
-  userData: firestoreType.User
-): Promise<firestoreType.UserId> => {
+  userId: definyFirestoreType.UserId,
+  userData: definyFirestoreType.User
+): Promise<definyFirestoreType.UserId> => {
   await userCollection.doc(userId).create(userData);
   return userId;
 };
@@ -58,8 +59,8 @@ export const addUser = async (
  * @param userId
  */
 export const getUser = async (
-  userId: firestoreType.UserId
-): Promise<firestoreType.User> => {
+  userId: definyFirestoreType.UserId
+): Promise<definyFirestoreType.User> => {
   const userData = (await userCollection.doc(userId).get()).data();
   if (userData === undefined) {
     throw new Error(`There was no user with userId = ${userId}`);
@@ -71,8 +72,8 @@ export const getUser = async (
  * ユーザーのデータを更新する
  */
 export const updateUser = async (
-  userId: firestoreType.UserId,
-  data: Partial<firestoreType.User>
+  userId: definyFirestoreType.UserId,
+  data: Partial<definyFirestoreType.User>
 ): Promise<void> => {
   await userCollection.doc(userId).update(data);
 };
@@ -81,24 +82,33 @@ export const updateUser = async (
  * 全てのユーザーのデータを取得する
  */
 export const getAllUser = async (): Promise<ReadonlyArray<{
-  id: firestoreType.UserId;
-  data: firestoreType.User;
+  id: definyFirestoreType.UserId;
+  data: definyFirestoreType.User;
 }>> =>
   (await userCollection.get()).docs.map(doc => ({
-    id: doc.id as firestoreType.UserId,
+    id: doc.id as definyFirestoreType.UserId,
     data: doc.data()
   }));
 
-export const searchUsers = async <T extends keyof firestoreType.User>(
-  filed: T,
-  operator: firestore.WhereFilterOp,
-  value: firestoreType.User[T]
-): Promise<Array<{ id: firestoreType.UserId; data: firestoreType.User }>> =>
-  (await userCollection.where(filed, operator, value).get()).docs.map(doc => ({
-    id: doc.id as firestoreType.UserId,
-    data: doc.data()
-  }));
+export const searchUserByLogInServiceAndId = async (
+  logInServiceAndId: definyFirestoreType.LogInServiceAndId
+): Promise<{
+  id: definyFirestoreType.UserId;
+  data: definyFirestoreType.UserSecret;
+}> => {
+  const doc = (
+    await UserSecretCollection.where(
+      "logInServiceAndId",
+      "==",
+      logInServiceAndId
+    ).get()
+  ).docs[0];
 
+  return {
+    id: doc.id as definyFirestoreType.UserId,
+    data: doc.data()
+  };
+};
 /**
  * Firebase Cloud Storage にファイルを保存する
  * @returns ハッシュ値
@@ -118,7 +128,7 @@ export const saveFile = async (
  * @param fileHash ファイルハッシュ
  */
 export const getReadableStream = (
-  fileHash: firestoreType.FileHash
+  fileHash: definyFirestoreType.FileHash
 ): stream.Readable => {
   return storageDefaultBucket.file(fileHash).createReadStream();
 };
@@ -127,20 +137,20 @@ export const getReadableStream = (
    ==========================================
 */
 type AccessTokenData = {
-  readonly userId: firestoreType.UserId;
+  readonly userId: definyFirestoreType.UserId;
   readonly issuedAt: FirebaseFirestore.Timestamp;
 };
 
 export const createAndWriteAccessToken = async (
-  accessTokenHash: firestoreType.AccessTokenHash,
+  accessTokenHash: definyFirestoreType.AccessTokenHash,
   data: AccessTokenData
 ): Promise<void> => {
   await accessTokenCollection.doc(accessTokenHash).create(data);
 };
 
 export const verifyAccessToken = async (
-  accessTokenHash: firestoreType.AccessTokenHash
-): Promise<firestoreType.UserId> => {
+  accessTokenHash: definyFirestoreType.AccessTokenHash
+): Promise<definyFirestoreType.UserId> => {
   const data = (
     await accessTokenCollection.doc(accessTokenHash).get()
   ).data() as undefined | AccessTokenData;
@@ -163,19 +173,19 @@ export const verifyAccessToken = async (
  * ソーシャルログイン stateを保存する
  */
 export const writeGoogleLogInState = async (
-  logInService: firestoreType.SocialLoginService,
+  logInService: definyFirestoreType.SocialLoginService,
   state: string
 ): Promise<void> => {
   await collectionFromLogInState(logInService)
     .doc(state)
-    .create({});
+    .create({ createdAt: getNowTimestamp() });
 };
 
 /**
  * ソーシャルログイン stateが存在することを確認し、存在するなら削除する
  */
 export const existsGoogleStateAndDeleteAndGetUserId = async (
-  logInService: firestoreType.SocialLoginService,
+  logInService: definyFirestoreType.SocialLoginService,
   state: string
 ): Promise<boolean> => {
   const docRef = collectionFromLogInState(logInService).doc(state);
@@ -193,9 +203,9 @@ export const existsGoogleStateAndDeleteAndGetUserId = async (
 */
 
 export const addProject = async (
-  data: firestoreType.Project
-): Promise<firestoreType.ProjectId> => {
-  const projectId = type.createRandomId() as firestoreType.ProjectId;
+  data: definyFirestoreType.Project
+): Promise<definyFirestoreType.ProjectId> => {
+  const projectId = type.createRandomId() as definyFirestoreType.ProjectId;
   await projectCollection.doc(projectId).create(data);
   return projectId;
 };
@@ -204,8 +214,8 @@ export const addProject = async (
  * Idで指定したプロジェクトのデータを取得する
  */
 export const getProject = async (
-  projectId: firestoreType.ProjectId
-): Promise<firestoreType.Project> => {
+  projectId: definyFirestoreType.ProjectId
+): Promise<definyFirestoreType.Project> => {
   const projectData = (await projectCollection.doc(projectId).get()).data();
   if (projectData === undefined) {
     throw new Error(`There was no project with projectId = ${projectId}`);
@@ -217,8 +227,8 @@ export const getProject = async (
  * プロジェクトのデータを変更する
  */
 export const updateProject = async (
-  projectId: firestoreType.ProjectId,
-  projectData: Partial<firestoreType.Project>
+  projectId: definyFirestoreType.ProjectId,
+  projectData: Partial<definyFirestoreType.Project>
 ): Promise<void> => {
   await projectCollection.doc(projectId).update(projectData);
 };
@@ -227,11 +237,11 @@ export const updateProject = async (
  * 全てのプロジェクトのデータを取得する
  */
 export const getAllProject = async (): Promise<ReadonlyArray<{
-  id: firestoreType.ProjectId;
-  data: firestoreType.Project;
+  id: definyFirestoreType.ProjectId;
+  data: definyFirestoreType.Project;
 }>> =>
   (await projectCollection.get()).docs.map(doc => ({
-    id: doc.id as firestoreType.ProjectId,
+    id: doc.id as definyFirestoreType.ProjectId,
     data: doc.data()
   }));
 
@@ -244,8 +254,8 @@ export const getAllProject = async (): Promise<ReadonlyArray<{
  * @param data
  */
 export const addBranch = async (
-  id: firestoreType.BranchId,
-  data: firestoreType.Branch
+  id: definyFirestoreType.BranchId,
+  data: definyFirestoreType.Branch
 ): Promise<void> => {
   await branchCollection.doc(id).create(data);
 };
@@ -254,8 +264,8 @@ export const addBranch = async (
  * ブランチを取得する
  */
 export const getBranch = async (
-  id: firestoreType.BranchId
-): Promise<firestoreType.Branch> => {
+  id: definyFirestoreType.BranchId
+): Promise<definyFirestoreType.Branch> => {
   const branchData = (await branchCollection.doc(id).get()).data();
   if (branchData === undefined) {
     throw new Error(`There was no branch with branchId = ${id}`);
@@ -267,8 +277,8 @@ export const getBranch = async (
  * ブランチを更新する
  */
 export const updateBranch = async (
-  id: firestoreType.BranchId,
-  data: Partial<firestoreType.Branch>
+  id: definyFirestoreType.BranchId,
+  data: Partial<definyFirestoreType.Branch>
 ): Promise<void> => {
   await branchCollection.doc(id).update(data);
 };
@@ -281,19 +291,19 @@ export const updateBranch = async (
  * コミットを作成する。存在するものをさらに作成したらエラー
  */
 export const addCommit = async (
-  data: firestoreType.Commit
-): Promise<firestoreType.CommitHash> => {
+  data: definyFirestoreType.Commit
+): Promise<definyFirestoreType.CommitHash> => {
   const hash = type.createHash(data);
   await commitCollection.doc(hash).create(data);
-  return hash as firestoreType.CommitHash;
+  return hash as definyFirestoreType.CommitHash;
 };
 
 /**
  * コミットを取得する
  */
 export const getCommit = async (
-  hash: firestoreType.CommitHash
-): Promise<firestoreType.Commit> => {
+  hash: definyFirestoreType.CommitHash
+): Promise<definyFirestoreType.Commit> => {
   const commitData = (await commitCollection.doc(hash).get()).data();
   if (commitData === undefined) {
     throw new Error(`There was no commit with commitHash = ${hash}`);
@@ -308,19 +318,19 @@ export const getCommit = async (
  * ドラフトコミットを作成する。存在するものをさらに作成したらエラー
  */
 export const addDraftCommit = async (
-  data: firestoreType.DraftCommit
-): Promise<firestoreType.DraftCommitHash> => {
+  data: definyFirestoreType.DraftCommit
+): Promise<definyFirestoreType.DraftCommitHash> => {
   const hash = type.createHash(data);
   await draftCommitCollection.doc(hash).create(data);
-  return hash as firestoreType.DraftCommitHash;
+  return hash as definyFirestoreType.DraftCommitHash;
 };
 
 /**
  * ドラフトコミットを取得する
  */
 export const getDraftCommit = async (
-  hash: firestoreType.DraftCommitHash
-): Promise<firestoreType.DraftCommit> => {
+  hash: definyFirestoreType.DraftCommitHash
+): Promise<definyFirestoreType.DraftCommit> => {
   const commitData = (await draftCommitCollection.doc(hash).get()).data();
   if (commitData === undefined) {
     throw new Error(`There was no draft commit with draftCommitHash = ${hash}`);
@@ -332,9 +342,9 @@ export const getDraftCommit = async (
  * モジュールのスナップショットを作成する。存在するものをさらに追加しようとしたら何もしない。
  */
 export const addModuleSnapshot = async (
-  data: firestoreType.ModuleSnapshot
-): Promise<firestoreType.ModuleSnapshotHash> => {
-  const hash = type.createHash(data) as firestoreType.ModuleSnapshotHash;
+  data: definyFirestoreType.ModuleSnapshot
+): Promise<definyFirestoreType.ModuleSnapshotHash> => {
+  const hash = type.createHash(data) as definyFirestoreType.ModuleSnapshotHash;
   if ((await moduleCollection.doc(hash).get()).exists) {
     return hash;
   }
@@ -346,8 +356,8 @@ export const addModuleSnapshot = async (
  * モジュールのスナップショットを取得する
  */
 export const getModuleSnapshot = async (
-  hash: firestoreType.ModuleSnapshotHash
-): Promise<firestoreType.ModuleSnapshot> => {
+  hash: definyFirestoreType.ModuleSnapshotHash
+): Promise<definyFirestoreType.ModuleSnapshot> => {
   const moduleData = (await moduleCollection.doc(hash).get()).data();
   if (moduleData === undefined) {
     throw new Error(`There was no module snapshot with hash = ${hash}`);
@@ -364,9 +374,9 @@ export const getModuleSnapshot = async (
  * 型定義のスナップショットを作成する。存在するものをさらに追加しようとしたら何もしない。
  */
 export const addTypeDefSnapshot = async (
-  data: firestoreType.TypeDefSnapshot
-): Promise<firestoreType.TypeDefSnapshotHash> => {
-  const hash = type.createHash(data) as firestoreType.TypeDefSnapshotHash;
+  data: definyFirestoreType.TypeDefSnapshot
+): Promise<definyFirestoreType.TypeDefSnapshotHash> => {
+  const hash = type.createHash(data) as definyFirestoreType.TypeDefSnapshotHash;
   if ((await typeCollection.doc(hash).get()).exists) {
     return hash;
   }
@@ -378,8 +388,8 @@ export const addTypeDefSnapshot = async (
  * 型定義のスナップショットを取得する
  */
 export const getTypeDefSnapshot = async (
-  hash: firestoreType.TypeDefSnapshotHash
-): Promise<firestoreType.TypeDefSnapshot> => {
+  hash: definyFirestoreType.TypeDefSnapshotHash
+): Promise<definyFirestoreType.TypeDefSnapshot> => {
   const typeDefSnapshot = (await typeCollection.doc(hash).get()).data();
   if (typeDefSnapshot === undefined) {
     throw new Error(`There was no typeDef snapshot with hash = ${hash}`);
@@ -395,9 +405,9 @@ export const getTypeDefSnapshot = async (
  * パーツ定義のスナップショットを作成する。存在するものをさらに追加しようとしたら何もしない。
  */
 export const addPartDefSnapshot = async (
-  data: firestoreType.PartDefSnapshot
-): Promise<firestoreType.PartDefSnapshotHash> => {
-  const hash = type.createHash(data) as firestoreType.PartDefSnapshotHash;
+  data: definyFirestoreType.PartDefSnapshot
+): Promise<definyFirestoreType.PartDefSnapshotHash> => {
+  const hash = type.createHash(data) as definyFirestoreType.PartDefSnapshotHash;
   if ((await partCollection.doc(hash).get()).exists) {
     return hash;
   }
@@ -409,8 +419,8 @@ export const addPartDefSnapshot = async (
  * パーツ定義のスナップショットを取得する
  */
 export const getPartDefSnapShot = async (
-  hash: firestoreType.PartDefSnapshotHash
-): Promise<firestoreType.PartDefSnapshot> => {
+  hash: definyFirestoreType.PartDefSnapshotHash
+): Promise<definyFirestoreType.PartDefSnapshot> => {
   const partDefSnapshot = (await partCollection.doc(hash).get()).data();
   if (partDefSnapshot === undefined) {
     throw new Error(`There was no partDef snapshot with hash = ${hash}`);
