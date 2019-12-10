@@ -14,7 +14,7 @@ import * as definyFirestoreType from "definy-firestore-type";
  * リプレイアタックを防いだり、他のサーバーがつくマートのクライアントIDを使って発行しても自分が発行したものと見比べて識別できるようにする
  */
 export const generateAndWriteLogInState = async (
-  logInService: type.SocialLoginService
+  logInService: definyFirestoreType.SocialLoginService
 ): Promise<string> => {
   const state = type.createRandomId();
   await databaseLow.writeGoogleLogInState(logInService, state);
@@ -25,7 +25,7 @@ export const generateAndWriteLogInState = async (
  * 指定したサービスのtateがDefinyによって発行したものかどうか調べ、あったらそのstateを削除する
  */
 export const checkExistsAndDeleteState = async (
-  logInService: type.SocialLoginService,
+  logInService: definyFirestoreType.SocialLoginService,
   state: string
 ): Promise<boolean> =>
   await databaseLow.existsGoogleStateAndDeleteAndGetUserId(logInService, state);
@@ -63,13 +63,13 @@ export const getUserFromLogInService = async (
 };
 
 type UserLowCost = {
-  readonly id: type.UserId;
-  readonly name: type.UserName;
-  readonly imageFileHash: type.FileHash;
+  readonly id: definyFirestoreType.UserId;
+  readonly name: string;
+  readonly imageFileHash: definyFirestoreType.FileHash;
   readonly introduction: string;
   readonly createdAt: Date;
   readonly branches: ReadonlyArray<{
-    id: type.BranchId;
+    id: definyFirestoreType.BranchId;
   }>;
 };
 
@@ -77,21 +77,31 @@ type UserLowCost = {
  * ユーザーを追加する
  */
 export const addUser = async (data: {
-  name: type.UserName;
-  imageId: type.FileHash;
-  logInServiceAndId: type.LogInServiceAndId;
-}): Promise<{ userId: type.UserId; accessToken: type.AccessToken }> => {
-  const userId = type.createRandomId() as type.UserId;
+  name: string;
+  imageId: definyFirestoreType.FileHash;
+  logInServiceAndId: definyFirestoreType.LogInServiceAndId;
+}): Promise<{
+  userId: definyFirestoreType.UserId;
+  accessToken: definyFirestoreType.AccessToken;
+}> => {
+  const userId = type.createRandomId() as definyFirestoreType.UserId;
   const accessToken = await createAccessToken(userId);
-  await databaseLow.addUser(userId, {
-    name: data.name,
-    imageHash: data.imageId,
-    introduction: "",
-    createdAt: databaseLow.getNowTimestamp(),
-    branchIds: [],
-    lastAccessTokenHash: type.hashAccessToken(accessToken),
-    logInServiceAndId: data.logInServiceAndId
-  });
+  await databaseLow.addUser(
+    userId,
+    {
+      name: data.name,
+      imageHash: data.imageId,
+      introduction: "",
+      createdAt: databaseLow.getNowTimestamp(),
+      branchIds: [],
+      likedProjectIds: []
+    },
+    {
+      logInServiceAndId: data.logInServiceAndId,
+      lastAccessTokenHash: type.hashAccessToken(accessToken),
+      bookmarkedProjectIds: []
+    }
+  );
   return { userId: userId, accessToken: accessToken };
 };
 

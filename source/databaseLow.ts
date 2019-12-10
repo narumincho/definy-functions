@@ -48,9 +48,13 @@ const partCollection = dataBase.collection("partDefSnapshot");
  */
 export const addUser = async (
   userId: definyFirestoreType.UserId,
-  userData: definyFirestoreType.User
+  userData: definyFirestoreType.User,
+  userSecretData: definyFirestoreType.UserSecret
 ): Promise<definyFirestoreType.UserId> => {
-  await userCollection.doc(userId).create(userData);
+  const batch = dataBase.batch();
+  batch.create(userCollection.doc(userId), userData);
+  batch.create(UserSecretCollection.doc(userId), userSecretData);
+  await batch.commit();
   return userId;
 };
 
