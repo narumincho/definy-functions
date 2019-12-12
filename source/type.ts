@@ -235,7 +235,7 @@ export const dateTimeGraphQLType = new g.GraphQLScalarType(dateTimeTypeConfig);
 
 export type Base64EncodedPng = string & { __base64EncodedBrand: never };
 
-export const base64EncodedPngFromString = (value: string) =>
+export const base64EncodedPngFromString = (value: string): Base64EncodedPng =>
   value as Base64EncodedPng;
 
 const base64EncodedPngTypeConfig: g.GraphQLScalarTypeConfig<
