@@ -56,8 +56,10 @@ export const getUserFromLogInService = async (
   if (userDataAndId === undefined) {
     return null;
   }
+  const userData = await databaseLow.getUser(userDataAndId.id);
+
   return {
-    ...databaseLowUserToLowCost(userDataAndId),
+    ...databaseLowUserToLowCost({ id: userDataAndId.id, data: userData }),
     lastAccessToken: userDataAndId.data.lastAccessTokenHash
   };
 };
@@ -109,7 +111,9 @@ export const addUser = async (data: {
  * ユーザーの情報を取得する
  * @param userId
  */
-export const getUser = async (userId: type.UserId): Promise<UserLowCost> =>
+export const getUser = async (
+  userId: definyFirestoreType.UserId
+): Promise<UserLowCost> =>
   databaseLowUserToLowCost({
     id: userId,
     data: await databaseLow.getUser(userId)
@@ -125,8 +129,8 @@ const databaseLowUserToLowCost = ({
   id,
   data
 }: {
-  id: type.UserId;
-  data: databaseLow.UserData;
+  id: definyFirestoreType.UserId;
+  data: definyFirestoreType.User;
 }): UserLowCost => ({
   id: id,
   name: data.name,
@@ -142,10 +146,10 @@ const databaseLowUserToLowCost = ({
  * @param accessToken
  */
 export const updateLastAccessToken = async (
-  userId: type.UserId,
-  accessToken: type.AccessToken
+  userId: definyFirestoreType.UserId,
+  accessToken: definyFirestoreType.AccessToken
 ): Promise<void> => {
-  await databaseLow.updateUser(userId, {
+  await databaseLow.updateUserSecret(userId, {
     lastAccessTokenHash: type.hashAccessToken(accessToken)
   });
 };
@@ -155,15 +159,18 @@ export const updateLastAccessToken = async (
 */
 
 type ProjectLowCost = {
-  readonly id: type.ProjectId;
+  readonly id: definyFirestoreType.ProjectId;
   readonly masterBranch: {
-    readonly id: type.BranchId;
+    readonly id: definyFirestoreType.BranchId;
   };
   readonly branches: ReadonlyArray<{
-    readonly id: type.BranchId;
+    readonly id: definyFirestoreType.BranchId;
   }>;
-  readonly taggedCommits: ReadonlyArray<{
-    readonly hash: type.CommitHash;
+  readonly statableReleasedCommitHashes: ReadonlyArray<{
+    readonly hash: definyFirestoreType.CommitHash;
+  }>;
+  readonly betaReleasedCommitHashes: ReadonlyArray<{
+    readonly hash: definyFirestoreType.CommitHash;
   }>;
 };
 
@@ -171,13 +178,15 @@ type ProjectLowCost = {
  * プロジェクトを追加する
  */
 export const addProject = async (
-  userId: type.UserId
+  userId: definyFirestoreType.UserId,
+  projectName: string
 ): Promise<ProjectLowCost> => {
+  const masterBranchId = type.createRandomId() as definyFirestoreType.BranchId;
+
   const initialCommitHash = (
     await addCommit({
-      authorId: userId,
-      commitDescription: "",
-      commitSummary: "initial commit",
+      branchId: masterBranchId,
+      commitDescription: "initial commit",
       dependencies: [],
       parentCommitHashes: [],
       projectSummary: "",
@@ -185,24 +194,40 @@ export const addProject = async (
       projectName: "",
       projectIconHash: null,
       projectImageHash: null,
-      releaseId: null,
       children: [],
       partDefs: [],
       typeDefs: []
     })
   ).hash;
-  const masterBranchId = type.createRandomId() as type.BranchId;
   const projectId = await databaseLow.addProject({
     branches: [],
     masterBranch: masterBranchId,
-    taggedCommitHashes: []
+    statableReleasedCommitHashes: [],
+    betaReleasedCommitHashes: []
+  });
+  // TODO Draftコミッt作成時にハッシュ値はいらない?
+  const draftCommitHash = await databaseLow.addDraftCommit({
+    projectName: projectName,
+    projectDescription: "",
+    projectIcon: "fileHashDammy" as definyFirestoreType.FileHash,
+    children: [],
+    date: databaseLow.getNowTimestamp(),
+    dependencies: [],
+    description: "",
+    hash: "draftCommitHashDammy" as definyFirestoreType.DraftCommitHash,
+    isRelease: false,
+    partDefs: [],
+    projectImage: "fileHashDammy" as definyFirestoreType.FileHash,
+    projectSummary: "",
+    typeDefs: []
   });
   await databaseLow.addBranch(masterBranchId, {
     description: "プロジェクト作成時に自動的に作られるマスターブランチ",
     headHash: initialCommitHash,
     name: type.labelFromString("master"),
     projectId: projectId,
-    ownerId: userId
+    ownerId: userId,
+    draftCommit: draftCommitHash
   });
 
   return {
@@ -211,7 +236,8 @@ export const addProject = async (
     masterBranch: {
       id: masterBranchId
     },
-    taggedCommits: []
+    statableReleasedCommitHashes: [],
+    betaReleasedCommitHashes: []
   };
 };
 
@@ -219,7 +245,7 @@ export const addProject = async (
  * プロジェクトの情報を取得する
  */
 export const getProject = async (
-  projectId: type.ProjectId
+  projectId: definyFirestoreType.ProjectId
 ): Promise<ProjectLowCost> => {
   return databaseLowProjectToLowCost({
     id: projectId,
@@ -237,13 +263,18 @@ const databaseLowProjectToLowCost = ({
   id,
   data
 }: {
-  id: type.ProjectId;
-  data: databaseLow.ProjectData;
+  id: definyFirestoreType.ProjectId;
+  data: definyFirestoreType.Project;
 }): ProjectLowCost => ({
   id: id,
   branches: data.branches.map(id => ({ id: id })),
   masterBranch: { id: data.masterBranch },
-  taggedCommits: data.taggedCommitHashes.map(hash => ({ hash: hash }))
+  betaReleasedCommitHashes: data.betaReleasedCommitHashes.map(hash => ({
+    hash
+  })),
+  statableReleasedCommitHashes: data.statableReleasedCommitHashes.map(hash => ({
+    hash
+  }))
 });
 
 /* ==========================================
@@ -251,58 +282,57 @@ const databaseLowProjectToLowCost = ({
    ==========================================
 */
 type BranchLowCost = {
-  readonly id: type.BranchId;
-  readonly name: type.Label;
+  readonly id: definyFirestoreType.BranchId;
+  readonly name: definyFirestoreType.Label;
   readonly project: {
-    readonly id: type.ProjectId;
+    readonly id: definyFirestoreType.ProjectId;
   };
   readonly description: string;
   readonly head: {
-    readonly hash: type.CommitHash;
+    readonly hash: definyFirestoreType.CommitHash;
   };
   readonly owner: {
-    readonly id: type.UserId;
+    readonly id: definyFirestoreType.UserId;
   };
   readonly draftCommit: null | {
-    readonly hash: type.DraftCommitHash;
+    readonly hash: definyFirestoreType.DraftCommitHash;
   };
 };
 
+/**
+ * 分岐元なしのブランチを作成する
+ */
 export const addBranch = async (
-  name: type.Label,
+  name: definyFirestoreType.Label,
   description: string,
-  projectId: type.ProjectId,
-  userId: type.UserId,
-  commitSummary: string,
+  projectId: definyFirestoreType.ProjectId,
+  userId: definyFirestoreType.UserId,
   commitDescription: string,
-  dependencies: ReadonlyArray<{
-    projectId: type.ProjectId;
-    releaseId: type.ReleaseId;
-  }>,
-  parentCommitHashes: ReadonlyArray<type.CommitHash>,
+  dependencies: ReadonlyArray<definyFirestoreType.CommitHash>,
+  parentCommitHashes: ReadonlyArray<definyFirestoreType.CommitHash>,
   projectName: string,
-  projectIconHash: type.FileHash,
-  projectImageHash: type.FileHash,
+  projectIconHash: definyFirestoreType.FileHash,
+  projectImageHash: definyFirestoreType.FileHash,
   projectSummary: string,
   projectDescription: string,
-  releaseId: null | type.ReleaseId,
   children: ReadonlyArray<{
-    id: type.ModuleId;
-    hash: type.ModuleSnapshotHash;
+    id: definyFirestoreType.ModuleId;
+    hash: definyFirestoreType.ModuleSnapshotHash;
   }>,
   typeDefs: ReadonlyArray<{
-    id: type.TypeId;
-    hash: type.TypeDefSnapshotHash;
+    id: definyFirestoreType.TypeId;
+    hash: definyFirestoreType.TypeDefSnapshotHash;
   }>,
   partDefs: ReadonlyArray<{
-    id: type.PartId;
-    hash: type.PartDefSnapshotHash;
+    id: definyFirestoreType.PartId;
+    hash: definyFirestoreType.PartDefSnapshotHash;
   }>
 ): Promise<BranchLowCost> => {
+  const branchId = type.createRandomId() as definyFirestoreType.BranchId;
+
   const branchHeadCommitHash = (
     await addCommit({
-      authorId: userId,
-      commitSummary: commitSummary,
+      branchId: branchId,
       commitDescription: commitDescription,
       dependencies: dependencies,
       parentCommitHashes: parentCommitHashes,
@@ -313,18 +343,23 @@ export const addBranch = async (
       projectDescription: projectDescription,
       partDefs: partDefs,
       typeDefs: typeDefs,
-      releaseId: releaseId,
       children: children
     })
   ).hash;
 
-  const branchId = type.createRandomId() as type.BranchId;
+  const draftCommitWithOutDate: Pick<definyFirestoreType.DraftCommit, "date">;
+  const draftCommitHash = type.createHash({});
+  const draftCommit = await databaseLow.addDraftCommit({
+    hash: hash
+  });
+
   await databaseLow.addBranch(branchId, {
     name: name,
     description: description,
     projectId: projectId,
     headHash: branchHeadCommitHash,
-    ownerId: userId
+    ownerId: userId,
+    draftCommit: branchHeadCommitHash
   });
   return {
     id: branchId,
@@ -337,7 +372,9 @@ export const addBranch = async (
   };
 };
 
-export const getBranch = async (id: type.BranchId): Promise<BranchLowCost> =>
+export const getBranch = async (
+  id: definyFirestoreType.BranchId
+): Promise<BranchLowCost> =>
   databaseLowBranchToLowCost({
     id: id,
     data: await databaseLow.getBranch(id)
@@ -347,8 +384,8 @@ const databaseLowBranchToLowCost = ({
   id,
   data
 }: {
-  id: type.BranchId;
-  data: databaseLow.BranchData;
+  id: definyFirestoreType.BranchId;
+  data: definyFirestoreType.Branch;
 }): BranchLowCost => ({
   id: id,
   name: data.name,
@@ -366,78 +403,69 @@ const databaseLowBranchToLowCost = ({
    ==========================================
 */
 type CommitLowCost = {
-  readonly hash: type.CommitHash;
+  readonly hash: definyFirestoreType.CommitHash;
   readonly parentCommits: ReadonlyArray<{
-    readonly hash: type.CommitHash;
+    readonly hash: definyFirestoreType.CommitHash;
   }>;
-  readonly releaseId: null | type.ReleaseId;
-  readonly description: string;
-  readonly author: {
-    readonly id: type.UserId;
+  readonly branch: {
+    readonly id: definyFirestoreType.BranchId;
   };
   readonly date: Date;
+  readonly commitDescription: string;
   readonly projectName: string;
   readonly projectIcon: {
-    hash: type.FileHash | null;
+    hash: definyFirestoreType.FileHash | null;
   };
   readonly projectImage: {
-    hash: type.FileHash | null;
+    hash: definyFirestoreType.FileHash | null;
   };
   readonly projectSummary: string;
   readonly projectDescription: string;
   readonly children: ReadonlyArray<{
-    readonly id: type.ModuleId;
+    readonly id: definyFirestoreType.ModuleId;
     readonly snapshot: {
-      readonly hash: type.ModuleSnapshotHash;
+      readonly hash: definyFirestoreType.ModuleSnapshotHash;
     };
   }>;
   readonly typeDefs: ReadonlyArray<{
-    readonly id: type.TypeId;
+    readonly id: definyFirestoreType.TypeId;
     readonly snapshot: {
-      readonly hash: type.TypeDefSnapshotHash;
+      readonly hash: definyFirestoreType.TypeDefSnapshotHash;
     };
   }>;
   readonly partDefs: ReadonlyArray<{
-    readonly id: type.PartId;
+    readonly id: definyFirestoreType.PartId;
     readonly snapshot: {
-      readonly hash: type.PartDefSnapshotHash;
+      readonly hash: definyFirestoreType.PartDefSnapshotHash;
     };
   }>;
   readonly dependencies: ReadonlyArray<{
-    readonly project: {
-      readonly id: type.ProjectId;
-    };
-    readonly releaseId: type.ReleaseId;
+    readonly hash: definyFirestoreType.CommitHash;
   }>;
 };
 
 export const addCommit = async (data: {
-  parentCommitHashes: ReadonlyArray<type.CommitHash>;
-  releaseId: null | type.ReleaseId;
-  authorId: type.UserId;
-  commitSummary: string;
+  parentCommitHashes: ReadonlyArray<definyFirestoreType.CommitHash>;
+  branchId: definyFirestoreType.BranchId;
   commitDescription: string;
   projectName: string;
-  projectIconHash: type.FileHash | null;
-  projectImageHash: type.FileHash | null;
+  projectIconHash: definyFirestoreType.FileHash | null;
+  projectImageHash: definyFirestoreType.FileHash | null;
   projectSummary: string;
   projectDescription: string;
   children: ReadonlyArray<{
-    id: type.ModuleId;
-    hash: type.ModuleSnapshotHash;
+    id: definyFirestoreType.ModuleId;
+    hash: definyFirestoreType.ModuleSnapshotHash;
   }>;
   typeDefs: ReadonlyArray<{
-    id: type.TypeId;
-    hash: type.TypeDefSnapshotHash;
+    id: definyFirestoreType.TypeId;
+    hash: definyFirestoreType.TypeDefSnapshotHash;
   }>;
   partDefs: ReadonlyArray<{
-    id: type.PartId;
-    hash: type.PartDefSnapshotHash;
+    id: definyFirestoreType.PartId;
+    hash: definyFirestoreType.PartDefSnapshotHash;
   }>;
-  dependencies: ReadonlyArray<{
-    projectId: type.ProjectId;
-    releaseId: type.ReleaseId;
-  }>;
+  dependencies: ReadonlyArray<definyFirestoreType.CommitHash>;
 }): Promise<CommitLowCost> => {
   const now = databaseLow.getNowTimestamp();
   const commitHash = await databaseLow.addCommit({
@@ -451,7 +479,7 @@ export const addCommit = async (data: {
 };
 
 export const getCommit = async (
-  hash: type.CommitHash
+  hash: definyFirestoreType.CommitHash
 ): Promise<CommitLowCost> =>
   databaseLowCommitToLowCost({
     hash: hash,
@@ -462,14 +490,13 @@ const databaseLowCommitToLowCost = ({
   hash,
   data
 }: {
-  hash: type.CommitHash;
-  data: databaseLow.CommitData;
+  hash: definyFirestoreType.CommitHash;
+  data: definyFirestoreType.Commit;
 }): CommitLowCost => ({
   hash: hash,
   parentCommits: data.parentCommitHashes.map(hash => ({ hash: hash })),
-  releaseId: data.releaseId,
-  author: {
-    id: data.authorId
+  branch: {
+    id: data.branchId
   },
   date: data.date.toDate(),
   description: data.commitDescription,
@@ -490,12 +517,7 @@ const databaseLowCommitToLowCost = ({
     id: p.id,
     snapshot: { hash: p.hash }
   })),
-  dependencies: data.dependencies.map(dependency => ({
-    project: {
-      id: dependency.projectId
-    },
-    releaseId: dependency.releaseId
-  }))
+  dependencies: data.dependencies.map(hash => ({ hash }))
 });
 
 /* ==========================================
@@ -503,43 +525,40 @@ const databaseLowCommitToLowCost = ({
    ==========================================
 */
 type DraftCommitLowCost = {
-  readonly hash: type.DraftCommitHash;
+  readonly hash: definyFirestoreType.DraftCommitHash;
   readonly date: Date;
   readonly description: string;
   readonly isRelease: boolean;
   readonly projectName: string;
-  readonly projectIconHash: type.FileHash;
-  readonly projectImageHash: type.FileHash;
+  readonly projectIconHash: definyFirestoreType.FileHash;
+  readonly projectImageHash: definyFirestoreType.FileHash;
   readonly projectSummary: string;
   readonly projectDescription: string;
   readonly children: ReadonlyArray<{
-    readonly id: type.ModuleId;
+    readonly id: definyFirestoreType.ModuleId;
     readonly snapshot: {
-      readonly hash: type.ModuleSnapshotHash;
+      readonly hash: definyFirestoreType.ModuleSnapshotHash;
     };
   }>;
   readonly typeDefs: ReadonlyArray<{
-    readonly id: type.TypeId;
+    readonly id: definyFirestoreType.TypeId;
     readonly snapshot: {
-      readonly hash: type.TypeDefSnapshotHash;
+      readonly hash: definyFirestoreType.TypeDefSnapshotHash;
     };
   }>;
   readonly partDefs: ReadonlyArray<{
-    readonly id: type.PartId;
+    readonly id: definyFirestoreType.PartId;
     readonly snapshot: {
-      readonly hash: type.PartDefSnapshotHash;
+      readonly hash: definyFirestoreType.PartDefSnapshotHash;
     };
   }>;
   readonly dependencies: ReadonlyArray<{
-    readonly project: {
-      readonly id: type.ProjectId;
-    };
-    readonly releaseId: type.ReleaseId;
+    readonly hash: definyFirestoreType.CommitHash;
   }>;
 };
 
 export const getDraftCommit = async (
-  hash: type.DraftCommitHash
+  hash: definyFirestoreType.DraftCommitHash
 ): Promise<DraftCommitLowCost> =>
   databaseLowDraftCommitToLowCost({
     hash: hash,
@@ -550,8 +569,8 @@ const databaseLowDraftCommitToLowCost = ({
   hash,
   data
 }: {
-  hash: type.DraftCommitHash;
-  data: databaseLow.DraftCommitData;
+  hash: definyFirestoreType.DraftCommitHash;
+  data: definyFirestoreType.DraftCommit;
 }): DraftCommitLowCost => ({
   hash: hash,
   date: data.date.toDate(),
@@ -574,12 +593,7 @@ const databaseLowDraftCommitToLowCost = ({
     id: p.id,
     snapshot: { hash: p.hash }
   })),
-  dependencies: data.dependencies.map(dependency => ({
-    project: {
-      id: dependency.projectId
-    },
-    releaseId: dependency.releaseId
-  }))
+  dependencies: data.dependencies.map(hash => ({ hash }))
 });
 
 /* ==========================================
@@ -587,24 +601,24 @@ const databaseLowDraftCommitToLowCost = ({
    ==========================================
 */
 type ModuleSnapshotLowCost = {
-  readonly hash: type.ModuleSnapshotHash;
-  readonly name: type.Label;
+  readonly hash: definyFirestoreType.ModuleSnapshotHash;
+  readonly name: definyFirestoreType.Label;
   readonly children: ReadonlyArray<{
-    readonly id: type.ModuleId;
+    readonly id: definyFirestoreType.ModuleId;
     readonly snapshot: {
-      readonly hash: type.ModuleSnapshotHash;
+      readonly hash: definyFirestoreType.ModuleSnapshotHash;
     };
   }>;
   readonly typeDefs: ReadonlyArray<{
-    readonly id: type.TypeId;
+    readonly id: definyFirestoreType.TypeId;
     readonly snapshot: {
-      readonly hash: type.TypeDefSnapshotHash;
+      readonly hash: definyFirestoreType.TypeDefSnapshotHash;
     };
   }>;
   readonly partDefs: ReadonlyArray<{
-    readonly id: type.PartId;
+    readonly id: definyFirestoreType.PartId;
     readonly snapshot: {
-      readonly hash: type.PartDefSnapshotHash;
+      readonly hash: definyFirestoreType.PartDefSnapshotHash;
     };
   }>;
   readonly description: string;
@@ -612,7 +626,7 @@ type ModuleSnapshotLowCost = {
 };
 
 export const addModuleSnapshot = async (
-  data: databaseLow.ModuleSnapshotData
+  data: definyFirestoreType.ModuleSnapshot
 ): Promise<ModuleSnapshotLowCost> => {
   const hash = await databaseLow.addModuleSnapshot(data);
   return databaseLowModuleSnapshotToLowCost({
@@ -625,19 +639,16 @@ export const addModuleSnapshot = async (
  * 指定したモジュールのスナップショットを取得する
  */
 export const getModuleSnapshot = async (
-  hash: type.ModuleSnapshotHash
+  hash: definyFirestoreType.ModuleSnapshotHash
 ): Promise<ModuleSnapshotLowCost> =>
   databaseLowModuleSnapshotToLowCost({
     hash: hash,
     data: await databaseLow.getModuleSnapshot(hash)
   });
 
-const databaseLowModuleSnapshotToLowCost = ({
-  hash,
-  data
-}: {
-  hash: type.ModuleSnapshotHash;
-  data: databaseLow.ModuleSnapshotData;
+const databaseLowModuleSnapshotToLowCost = (data: {
+  hash: definyFirestoreType.ModuleSnapshotHash;
+  data: definyFirestoreType.ModuleSnapshot;
 }): ModuleSnapshotLowCost => ({
   hash: hash,
   name: data.name,
@@ -662,16 +673,16 @@ const databaseLowModuleSnapshotToLowCost = ({
    ==========================================
 */
 type TypeDefSnapshotLowCost = {
-  hash: type.TypeDefSnapshotHash;
-  name: type.Label;
+  hash: definyFirestoreType.TypeDefSnapshotHash;
+  name: definyFirestoreType.Label;
   description: string;
-  body: type.TypeBody;
+  body: definyFirestoreType.TypeBody;
 };
 
 export const addTypeDefSnapshot = async (
-  name: type.Label,
+  name: definyFirestoreType.Label,
   description: string,
-  body: type.TypeBody
+  body: definyFirestoreType.TypeBody
 ): Promise<TypeDefSnapshotLowCost> => {
   const hash = await databaseLow.addTypeDefSnapshot({
     name: name,
@@ -687,7 +698,7 @@ export const addTypeDefSnapshot = async (
 };
 
 export const getTypeDefSnapshot = async (
-  hash: type.TypeDefSnapshotHash
+  hash: definyFirestoreType.TypeDefSnapshotHash
 ): Promise<TypeDefSnapshotLowCost> =>
   databaseLowTypeDefSnapshotToLowCost({
     hash: hash,
@@ -698,8 +709,8 @@ const databaseLowTypeDefSnapshotToLowCost = ({
   hash,
   data
 }: {
-  hash: type.TypeDefSnapshotHash;
-  data: databaseLow.TypeDefSnapshot;
+  hash: definyFirestoreType.TypeDefSnapshotHash;
+  data: definyFirestoreType.TypeDefSnapshot;
 }): TypeDefSnapshotLowCost => ({
   hash: hash,
   name: data.name,
@@ -712,40 +723,46 @@ const databaseLowTypeDefSnapshotToLowCost = ({
    ==========================================
 */
 type PartDefSnapshotLowCost = {
-  readonly hash: type.PartDefSnapshotHash;
-  readonly name: type.Label;
+  readonly hash: definyFirestoreType.PartDefSnapshotHash;
+  readonly name: definyFirestoreType.Label;
   readonly description: string;
-  readonly type: ReadonlyArray<type.TypeTermOrParenthesis>;
+  readonly type: ReadonlyArray<definyFirestoreType.TypeTermOrParenthesis>;
   readonly expr: {
-    readonly hash: type.ExprSnapshotHash;
+    readonly hash: definyFirestoreType.ExprSnapshotHash;
+    readonly body: string;
   };
 };
 
 export const addPartDefSnapshot = async (
-  name: type.Label,
+  id: definyFirestoreType.PartId,
+  name: definyFirestoreType.Label,
   description: string,
-  type: ReadonlyArray<type.TypeTermOrParenthesis>,
-  expr: type.ExprSnapshotHash
+  exprType: ReadonlyArray<definyFirestoreType.TypeTermOrParenthesis>,
+  expr: definyFirestoreType.ExprBody
 ): Promise<PartDefSnapshotLowCost> => {
+  const exprHashAndBody = {
+    hash: type.createHash(expr) as definyFirestoreType.ExprSnapshotHash,
+    body: JSON.stringify(expr)
+  };
+
   const hash = await databaseLow.addPartDefSnapshot({
+    id: id,
     name: name,
     description: description,
-    type: type,
-    exprHash: expr
+    type: exprType,
+    expr: exprHashAndBody
   });
   return {
     hash: hash,
     name: name,
     description: description,
-    type: type,
-    expr: {
-      hash: expr
-    }
+    type: exprType,
+    expr: exprHashAndBody
   };
 };
 
 export const getPartDefSnapshot = async (
-  hash: type.PartDefSnapshotHash
+  hash: definyFirestoreType.PartDefSnapshotHash
 ): Promise<PartDefSnapshotLowCost> =>
   databaseLowPartDefSnapshotToLowCost({
     hash: hash,
@@ -756,8 +773,8 @@ const databaseLowPartDefSnapshotToLowCost = ({
   hash,
   data
 }: {
-  hash: type.PartDefSnapshotHash;
-  data: databaseLow.PartDefSnapshot;
+  hash: definyFirestoreType.PartDefSnapshotHash;
+  data: definyFirestoreType.PartDefSnapshot;
 }): PartDefSnapshotLowCost => ({
   hash: hash,
   name: data.name,
@@ -769,43 +786,6 @@ const databaseLowPartDefSnapshotToLowCost = ({
 });
 
 /* ==========================================
-               Expr Snapshot
-   ==========================================
-*/
-type ExprSnapshotLowCost = {
-  readonly hash: type.ExprSnapshotHash;
-  readonly value: ReadonlyArray<type.TermOrParenthesis>;
-};
-
-export const addExprDefSnapshot = async (
-  value: ReadonlyArray<type.TermOrParenthesis>
-): Promise<ExprSnapshotLowCost> => {
-  const hash = await databaseLow.addExprSnapshot({ value: value });
-  return {
-    hash: hash,
-    value: value
-  };
-};
-
-export const getExprSnapshot = async (
-  hash: type.ExprSnapshotHash
-): Promise<ExprSnapshotLowCost> =>
-  databaseLowExprDefSnapshotToLowCost({
-    hash: hash,
-    data: await databaseLow.getExprSnapshot(hash)
-  });
-
-const databaseLowExprDefSnapshotToLowCost = ({
-  hash,
-  data
-}: {
-  hash: type.ExprSnapshotHash;
-  data: databaseLow.ExprSnapshot;
-}): ExprSnapshotLowCost => ({
-  hash: hash,
-  value: data.value
-});
-/* ==========================================
                 AccessToken
    ==========================================
 */
@@ -815,8 +795,8 @@ const databaseLowExprDefSnapshotToLowCost = ({
  * @param accessToken
  */
 export const createAccessToken = async (
-  userId: type.UserId
-): Promise<type.AccessToken> => {
+  userId: definyFirestoreType.UserId
+): Promise<definyFirestoreType.AccessToken> => {
   const accessToken = type.createAccessToken();
   await databaseLow.createAndWriteAccessToken(
     type.hashAccessToken(accessToken),
@@ -832,6 +812,6 @@ export const createAccessToken = async (
  * @param accessToken
  */
 export const verifyAccessToken = async (
-  accessToken: type.AccessToken
-): Promise<type.UserId> =>
+  accessToken: definyFirestoreType.AccessToken
+): Promise<definyFirestoreType.UserId> =>
   await databaseLow.verifyAccessToken(type.hashAccessToken(accessToken));

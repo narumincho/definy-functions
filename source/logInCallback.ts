@@ -5,6 +5,7 @@ import { URL, URLSearchParams } from "url";
 import * as tool from "./tool";
 import * as jwt from "jsonwebtoken";
 import * as type from "./type";
+import * as definyFirestoreType from "definy-firestore-type";
 
 const domain = "definy-lang.web.app";
 const homeUrl = tool.urlFromString(domain);
@@ -87,8 +88,8 @@ export const googleLogInReceiver = async (
     new URL(googleData.picture)
   );
   const { accessToken } = await database.addUser({
-    name: type.userNameFromString(googleData.name.trim()),
-    imageId: userImageId as type.FileHash,
+    name: googleData.name.trim(),
+    imageId: userImageId as definyFirestoreType.FileHash,
     logInServiceAndId: {
       service: "google",
       accountId: googleData.sub
@@ -207,8 +208,8 @@ query {
     new URL(userData.avatarUrl)
   );
   const { accessToken } = await database.addUser({
-    name: type.userNameFromString(userData.name.trim()),
-    imageId: imageId as type.FileHash,
+    name: userData.name.trim(),
+    imageId: imageId as definyFirestoreType.FileHash,
     logInServiceAndId: {
       service: "gitHub",
       accountId: userData.id
@@ -283,8 +284,8 @@ export const lineLogInReceiver = async (
     new URL(lineData.picture)
   );
   const { accessToken } = await database.addUser({
-    name: type.userNameFromString(lineData.name.trim()),
-    imageId: imageId as type.FileHash,
+    name: lineData.name.trim(),
+    imageId: imageId as definyFirestoreType.FileHash,
     logInServiceAndId: {
       service: "line",
       accountId: lineData.sub

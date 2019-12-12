@@ -83,6 +83,16 @@ export const updateUser = async (
 };
 
 /**
+ * 自分以外には見られてはいけないデータを更新する
+ */
+export const updateUserSecret = async (
+  userId: definyFirestoreType.UserId,
+  data: Partial<definyFirestoreType.UserSecret>
+) => {
+  await UserSecretCollection.doc(userId).update(data);
+};
+
+/**
  * 全てのユーザーのデータを取得する
  */
 export const getAllUser = async (): Promise<ReadonlyArray<{
