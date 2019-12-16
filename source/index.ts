@@ -71,14 +71,6 @@ export const indexHtml = functions.https.onRequest((request, response) => {
     </style>
 
     <script src="/main.js" defer></script>
-    <script type="module">
-        navigator.serviceWorker.register(
-            "/serviceworker.js",
-            { scope: "/" }
-        ).then(()=>{
-            console.log("serviceWorkerを登録した!");
-        })
-    </script>
 </head>
 
 <body>

@@ -14,7 +14,7 @@ import * as definyFirestoreType from "definy-firestore-type";
  * リプレイアタックを防いだり、他のサーバーがつくマートのクライアントIDを使って発行しても自分が発行したものと見比べて識別できるようにする
  */
 export const generateAndWriteLogInState = async (
-  logInService: definyFirestoreType.SocialLoginService
+  logInService: definyFirestoreType.OpenIdConnectProvider
 ): Promise<string> => {
   const state = type.createRandomId();
   await databaseLow.writeGoogleLogInState(logInService, state);
@@ -25,10 +25,10 @@ export const generateAndWriteLogInState = async (
  * 指定したサービスのtateがDefinyによって発行したものかどうか調べ、あったらそのstateを削除する
  */
 export const checkExistsAndDeleteState = async (
-  logInService: definyFirestoreType.SocialLoginService,
+  provider: definyFirestoreType.OpenIdConnectProvider,
   state: string
 ): Promise<boolean> =>
-  await databaseLow.existsGoogleStateAndDeleteAndGetUserId(logInService, state);
+  await databaseLow.existsGoogleStateAndDeleteAndGetUserId(provider, state);
 
 /**
  * ユーザーの画像をURLから保存する
@@ -48,7 +48,7 @@ export const saveUserImageFromUrl = async (url: URL): Promise<string> => {
  * @param logInServiceAndId
  */
 export const getUserFromLogInService = async (
-  logInServiceAndId: definyFirestoreType.LogInServiceAndId
+  logInServiceAndId: definyFirestoreType.OpenIdConnectProviderAndId
 ): Promise<(UserLowCost & { lastAccessToken: string }) | null> => {
   const userDataAndId = await databaseLow.searchUserByLogInServiceAndId(
     logInServiceAndId
@@ -81,7 +81,7 @@ type UserLowCost = {
 export const addUser = async (data: {
   name: string;
   imageId: definyFirestoreType.FileHash;
-  logInServiceAndId: definyFirestoreType.LogInServiceAndId;
+  openIdConnectProviderAndId: definyFirestoreType.OpenIdConnectProviderAndId;
 }): Promise<{
   userId: definyFirestoreType.UserId;
   accessToken: definyFirestoreType.AccessToken;
@@ -99,9 +99,10 @@ export const addUser = async (data: {
       likedProjectIds: []
     },
     {
-      logInServiceAndId: data.logInServiceAndId,
+      openIdConnect: data.openIdConnectProviderAndId,
       lastAccessTokenHash: type.hashAccessToken(accessToken),
-      bookmarkedProjectIds: []
+      bookmarkedProjectIds: [],
+      corkBoardParts: []
     }
   );
   return { userId: userId, accessToken: accessToken };
@@ -223,7 +224,7 @@ export const addProject = async (
   });
   await databaseLow.addBranch(masterBranchId, {
     description: "プロジェクト作成時に自動的に作られるマスターブランチ",
-    headHash: initialCommitHash,
+    headCommitHash: initialCommitHash,
     name: type.labelFromString("master"),
     projectId: projectId,
     ownerId: userId,
@@ -393,7 +394,7 @@ const databaseLowBranchToLowCost = ({
     id: data.projectId
   },
   description: data.description,
-  head: { hash: data.headHash },
+  head: { hash: data.headCommitHash },
   owner: { id: data.ownerId },
   draftCommit: null
 });
@@ -577,8 +578,8 @@ const databaseLowDraftCommitToLowCost = ({
   description: data.description,
   isRelease: data.isRelease,
   projectName: data.projectName,
-  projectIconHash: data.projectIconHash,
-  projectImageHash: data.projectImageHash,
+  projectIconHash: data.projectIcon,
+  projectImageHash: data.projectImage,
   projectSummary: data.projectSummary,
   projectDescription: data.projectDescription,
   children: data.children.map(child => ({
@@ -625,6 +626,28 @@ type ModuleSnapshotLowCost = {
   readonly exposing: boolean;
 };
 
+const databaseLowModuleSnapshotToLowCost = (hashAndData: {
+  hash: definyFirestoreType.ModuleSnapshotHash;
+  data: definyFirestoreType.ModuleSnapshot;
+}): ModuleSnapshotLowCost => ({
+  hash: hashAndData.hash,
+  name: hashAndData.data.name,
+  children: hashAndData.data.children.map(m => ({
+    id: m.id,
+    snapshot: { hash: m.hash }
+  })),
+  typeDefs: hashAndData.data.typeDefs.map(t => ({
+    id: t.id,
+    snapshot: { hash: t.hash }
+  })),
+  partDefs: hashAndData.data.partDefs.map(p => ({
+    id: p.id,
+    snapshot: { hash: p.hash }
+  })),
+  description: hashAndData.data.description,
+  exposing: hashAndData.data.exposing
+});
+
 export const addModuleSnapshot = async (
   data: definyFirestoreType.ModuleSnapshot
 ): Promise<ModuleSnapshotLowCost> => {
@@ -646,33 +669,12 @@ export const getModuleSnapshot = async (
     data: await databaseLow.getModuleSnapshot(hash)
   });
 
-const databaseLowModuleSnapshotToLowCost = (data: {
-  hash: definyFirestoreType.ModuleSnapshotHash;
-  data: definyFirestoreType.ModuleSnapshot;
-}): ModuleSnapshotLowCost => ({
-  hash: hash,
-  name: data.name,
-  children: data.children.map(m => ({
-    id: m.id,
-    snapshot: { hash: m.hash }
-  })),
-  typeDefs: data.typeDefs.map(t => ({
-    id: t.id,
-    snapshot: { hash: t.hash }
-  })),
-  partDefs: data.partDefs.map(p => ({
-    id: p.id,
-    snapshot: { hash: p.hash }
-  })),
-  description: data.description,
-  exposing: data.exposing
-});
-
 /* ==========================================
                Type Def Snapshot
    ==========================================
 */
 type TypeDefSnapshotLowCost = {
+  id: definyFirestoreType.TypeId;
   hash: definyFirestoreType.TypeDefSnapshotHash;
   name: definyFirestoreType.Label;
   description: string;
@@ -684,26 +686,21 @@ export const addTypeDefSnapshot = async (
   description: string,
   body: definyFirestoreType.TypeBody
 ): Promise<TypeDefSnapshotLowCost> => {
+  const id = type.createRandomId() as definyFirestoreType.TypeId;
   const hash = await databaseLow.addTypeDefSnapshot({
+    id: id,
     name: name,
     description: description,
     body: body
   });
   return {
+    id: id,
     hash: hash,
     name: name,
     description: description,
     body: body
   };
 };
-
-export const getTypeDefSnapshot = async (
-  hash: definyFirestoreType.TypeDefSnapshotHash
-): Promise<TypeDefSnapshotLowCost> =>
-  databaseLowTypeDefSnapshotToLowCost({
-    hash: hash,
-    data: await databaseLow.getTypeDefSnapshot(hash)
-  });
 
 const databaseLowTypeDefSnapshotToLowCost = ({
   hash,
@@ -713,10 +710,19 @@ const databaseLowTypeDefSnapshotToLowCost = ({
   data: definyFirestoreType.TypeDefSnapshot;
 }): TypeDefSnapshotLowCost => ({
   hash: hash,
+  id: data.id,
   name: data.name,
   description: data.description,
   body: data.body
 });
+
+export const getTypeDefSnapshot = async (
+  hash: definyFirestoreType.TypeDefSnapshotHash
+): Promise<TypeDefSnapshotLowCost> =>
+  databaseLowTypeDefSnapshotToLowCost({
+    hash: hash,
+    data: await databaseLow.getTypeDefSnapshot(hash)
+  });
 
 /* ==========================================
                Part Def Snapshot
@@ -724,6 +730,7 @@ const databaseLowTypeDefSnapshotToLowCost = ({
 */
 type PartDefSnapshotLowCost = {
   readonly hash: definyFirestoreType.PartDefSnapshotHash;
+  readonly id: definyFirestoreType.PartId;
   readonly name: definyFirestoreType.Label;
   readonly description: string;
   readonly type: ReadonlyArray<definyFirestoreType.TypeTermOrParenthesis>;
@@ -733,33 +740,46 @@ type PartDefSnapshotLowCost = {
   };
 };
 
-export const addPartDefSnapshot = async (
-  id: definyFirestoreType.PartId,
-  name: definyFirestoreType.Label,
-  description: string,
-  exprType: ReadonlyArray<definyFirestoreType.TypeTermOrParenthesis>,
-  expr: definyFirestoreType.ExprBody
-): Promise<PartDefSnapshotLowCost> => {
+export const addPartDefSnapshot = async (data: {
+  id: definyFirestoreType.PartId;
+  name: definyFirestoreType.Label;
+  description: string;
+  exprType: ReadonlyArray<definyFirestoreType.TypeTermOrParenthesis>;
+  expr: definyFirestoreType.ExprBody;
+}): Promise<PartDefSnapshotLowCost> => {
   const exprHashAndBody = {
-    hash: type.createHash(expr) as definyFirestoreType.ExprSnapshotHash,
-    body: JSON.stringify(expr)
+    hash: type.createHash(data.expr) as definyFirestoreType.ExprSnapshotHash,
+    body: JSON.stringify(data.expr)
   };
 
   const hash = await databaseLow.addPartDefSnapshot({
-    id: id,
-    name: name,
-    description: description,
-    type: exprType,
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    type: data.exprType,
     expr: exprHashAndBody
   });
   return {
     hash: hash,
-    name: name,
-    description: description,
-    type: exprType,
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    type: data.exprType,
     expr: exprHashAndBody
   };
 };
+
+const databaseLowPartDefSnapshotToLowCost = (hashAndData: {
+  hash: definyFirestoreType.PartDefSnapshotHash;
+  data: definyFirestoreType.PartDefSnapshot;
+}): PartDefSnapshotLowCost => ({
+  hash: hashAndData.hash,
+  id: hashAndData.data.id,
+  name: hashAndData.data.name,
+  description: hashAndData.data.description,
+  type: hashAndData.data.type,
+  expr: { body: hashAndData.data.expr.body, hash: hashAndData.data.expr.hash }
+});
 
 export const getPartDefSnapshot = async (
   hash: definyFirestoreType.PartDefSnapshotHash
@@ -768,22 +788,6 @@ export const getPartDefSnapshot = async (
     hash: hash,
     data: await databaseLow.getPartDefSnapShot(hash)
   });
-
-const databaseLowPartDefSnapshotToLowCost = ({
-  hash,
-  data
-}: {
-  hash: definyFirestoreType.PartDefSnapshotHash;
-  data: definyFirestoreType.PartDefSnapshot;
-}): PartDefSnapshotLowCost => ({
-  hash: hash,
-  name: data.name,
-  description: data.description,
-  type: data.type,
-  expr: {
-    hash: data.exprHash
-  }
-});
 
 /* ==========================================
                 AccessToken

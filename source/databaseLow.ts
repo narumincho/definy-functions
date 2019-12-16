@@ -16,12 +16,13 @@ const userCollection = dataBase.collection("user");
 const UserSecretCollection = dataBase.collection("userSecret");
 const accessTokenCollection = dataBase.collection("accessToken");
 const collectionFromLogInState = (
-  logInService: definyFirestoreType.SocialLoginService
+  provider: definyFirestoreType.OpenIdConnectProvider
 ): typedFirestore.CollectionReference<{
-  doc: definyFirestoreType.State;
-  col: {};
+  key: string;
+  value: definyFirestoreType.State;
+  subCollections: {};
 }> => {
-  switch (logInService) {
+  switch (provider) {
     case "google":
       return dataBase.collection("googleState");
     case "gitHub":
@@ -105,17 +106,13 @@ export const getAllUser = async (): Promise<ReadonlyArray<{
   }));
 
 export const searchUserByLogInServiceAndId = async (
-  logInServiceAndId: definyFirestoreType.LogInServiceAndId
+  providerAndId: definyFirestoreType.OpenIdConnectProviderAndId
 ): Promise<{
   id: definyFirestoreType.UserId;
   data: definyFirestoreType.UserSecret;
 }> => {
   const doc = (
-    await UserSecretCollection.where(
-      "logInServiceAndId",
-      "==",
-      logInServiceAndId
-    ).get()
+    await UserSecretCollection.where("openIdConnect", "==", providerAndId).get()
   ).docs[0];
 
   return {
@@ -187,10 +184,10 @@ export const verifyAccessToken = async (
  * ソーシャルログイン stateを保存する
  */
 export const writeGoogleLogInState = async (
-  logInService: definyFirestoreType.SocialLoginService,
+  provider: definyFirestoreType.OpenIdConnectProvider,
   state: string
 ): Promise<void> => {
-  await collectionFromLogInState(logInService)
+  await collectionFromLogInState(provider)
     .doc(state)
     .create({ createdAt: getNowTimestamp() });
 };
@@ -199,10 +196,10 @@ export const writeGoogleLogInState = async (
  * ソーシャルログイン stateが存在することを確認し、存在するなら削除する
  */
 export const existsGoogleStateAndDeleteAndGetUserId = async (
-  logInService: definyFirestoreType.SocialLoginService,
+  provider: definyFirestoreType.OpenIdConnectProvider,
   state: string
 ): Promise<boolean> => {
-  const docRef = collectionFromLogInState(logInService).doc(state);
+  const docRef = collectionFromLogInState(provider).doc(state);
   const data = (await docRef.get()).data();
   if (data === undefined) {
     return false;
@@ -307,9 +304,9 @@ export const updateBranch = async (
 export const addCommit = async (
   data: definyFirestoreType.Commit
 ): Promise<definyFirestoreType.CommitHash> => {
-  const hash = type.createHash(data);
+  const hash = type.createHash(data) as definyFirestoreType.CommitHash;
   await commitCollection.doc(hash).create(data);
-  return hash as definyFirestoreType.CommitHash;
+  return hash;
 };
 
 /**
@@ -333,17 +330,19 @@ export const getCommit = async (
  */
 export const addDraftCommit = async (
   data: definyFirestoreType.DraftCommit
-): Promise<definyFirestoreType.DraftCommitHash> => {
-  const hash = type.createHash(data);
-  await draftCommitCollection.doc(hash).create(data);
-  return hash as definyFirestoreType.DraftCommitHash;
+): Promise<definyFirestoreType.DraftCommitId> => {
+  const draftCommitId = type.createHash(
+    data
+  ) as definyFirestoreType.DraftCommitId;
+  await draftCommitCollection.doc(draftCommitId).create(data);
+  return draftCommitId;
 };
 
 /**
  * ドラフトコミットを取得する
  */
 export const getDraftCommit = async (
-  hash: definyFirestoreType.DraftCommitHash
+  hash: definyFirestoreType.DraftCommitId
 ): Promise<definyFirestoreType.DraftCommit> => {
   const commitData = (await draftCommitCollection.doc(hash).get()).data();
   if (commitData === undefined) {

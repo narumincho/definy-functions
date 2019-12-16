@@ -281,14 +281,6 @@ export const createAccessToken = (): firestoreType.AccessToken => {
   return crypto.randomBytes(24).toString("hex") as firestoreType.AccessToken;
 };
 
-export const hashAccessToken = (
-  accessToken: firestoreType.AccessToken
-): firestoreType.AccessTokenHash =>
-  crypto
-    .createHash("sha256")
-    .update(accessTokenToTypedArray(accessToken))
-    .digest("hex") as firestoreType.AccessTokenHash;
-
 const accessTokenToTypedArray = (
   accessToken: firestoreType.AccessToken
 ): Uint8Array => {
@@ -298,6 +290,14 @@ const accessTokenToTypedArray = (
   }
   return binary;
 };
+
+export const hashAccessToken = (
+  accessToken: firestoreType.AccessToken
+): firestoreType.AccessTokenHash =>
+  crypto
+    .createHash("sha256")
+    .update(accessTokenToTypedArray(accessToken))
+    .digest("hex") as firestoreType.AccessTokenHash;
 
 export const accessTokenDescription =
   "アクセストークン。getLogInUrlで取得したログインURLのページからリダイレクトするときのクエリパラメータについてくる。個人的なデータにアクセスするときに必要。使う文字は0123456789abcdef。長さは48文字";
