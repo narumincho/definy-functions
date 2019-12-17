@@ -39,6 +39,16 @@ const draftCommitCollection = dataBase.collection("draftCommit");
 const typeCollection = dataBase.collection("typeDefSnapshot");
 const partCollection = dataBase.collection("partDefSnapshot");
 /* ==========================================
+                Timestamp
+   ==========================================
+*/
+/**
+ * 今の時刻のタイムスタンプを得る
+ */
+export const getNowTimestamp = (): firestore.Timestamp =>
+  admin.firestore.Timestamp.now();
+
+/* ==========================================
                     User
    ==========================================
 */
@@ -440,12 +450,3 @@ export const getPartDefSnapShot = async (
   }
   return partDefSnapshot;
 };
-/* ==========================================
-                Timestamp
-   ==========================================
-*/
-/**
- * 今の時刻のタイムスタンプを得る
- */
-export const getNowTimestamp = (): firestore.Timestamp =>
-  admin.firestore.Timestamp.now();

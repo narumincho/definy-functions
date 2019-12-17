@@ -15,6 +15,24 @@ console.log("サーバーのプログラムが読み込まれた");
  *          Cloud Functions for Firebase / indexHtml
  * =====================================================================
  */
+
+const escapeHtml = (text: string): string =>
+  text.replace(/[&'`"<>]/g, (s: string): string =>
+    s === "&"
+      ? "&amp;"
+      : s === "'"
+      ? "&#x27;"
+      : s === "`"
+      ? "&#x60;"
+      : s === '"'
+      ? "&quot;"
+      : s === "<"
+      ? "&lt;"
+      : s === ">"
+      ? "&gt;"
+      : ""
+  );
+
 export const indexHtml = functions.https.onRequest((request, response) => {
   if (request.hostname !== "definy-lang.web.app") {
     response.redirect("https://definy-lang.web.app");
@@ -34,7 +52,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
     <meta name="twitter:card" content="summary_large_image">
     <meta property="og:url" content="https://definy-lang.web.app${request.url}">
     <meta property="og:title" content="${escapeHtml(
-      "タイトル" + Math.random()
+      "タイトル" + Math.random().toString()
     )}">
     <meta property="og:site_name" content="Definy">
     <meta property="og:description" content="${escapeHtml("説明文!")}">
@@ -80,23 +98,6 @@ export const indexHtml = functions.https.onRequest((request, response) => {
 </html>`);
 });
 
-const escapeHtml = (text: string): string =>
-  text.replace(/[&'`"<>]/g, (s: string): string =>
-    s === "&"
-      ? "&amp;"
-      : s === "'"
-      ? "&#x27;"
-      : s === "`"
-      ? "&#x60;"
-      : s === '"'
-      ? "&quot;"
-      : s === "<"
-      ? "&lt;"
-      : s === ">"
-      ? "&gt;"
-      : ""
-  );
-
 /* =====================================================================
  *                          API (GraphQL)
  *        https://us-central1-definy-lang.cloudfunctions.net/api
@@ -128,6 +129,19 @@ export const api = functions
  *   https://us-central1-definy-lang.cloudfunctions.net/logInCallback
  * =====================================================================
  */
+const sendResponseFromLogInCallbackResult = (
+  result: libLogInCallback.Result,
+  response: express.Response
+): void => {
+  switch (result.type) {
+    case "error":
+      response.status(400).send(result.message);
+      return;
+    case "redirect":
+      response.redirect(result.url.toString());
+  }
+};
+
 export const logInCallback = functions.https.onRequest(
   async (request, response) => {
     switch (request.path) {
@@ -159,19 +173,6 @@ export const logInCallback = functions.https.onRequest(
     }
   }
 );
-
-const sendResponseFromLogInCallbackResult = (
-  result: libLogInCallback.Result,
-  response: express.Response
-): void => {
-  switch (result.type) {
-    case "error":
-      response.status(400).send(result.message);
-      return;
-    case "redirect":
-      response.redirect(result.url.toString());
-  }
-};
 
 /* =====================================================================
  *                 File バイナリファイルを欲しいときに利用する
@@ -205,19 +206,19 @@ export const file = functions.https.onRequest(async (request, response) => {
  *    https://us-central1-definy-lang.cloudfunctions.net/sitemap
  * =====================================================================
  */
-export const sitemap = functions
-  .region("us-central1")
-  .https.onRequest(async (request, response) => {
-    response.setHeader("content-type", "application/xml");
-    response.send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pathToXml("")}
-</urlset>`);
-  });
-
 const pathToXml = (path: string): string => `
     <url>
         <loc>https://definy-lang.web.app/${path}</loc>
         <lastmod>2019-09-17</lastmod>
     </url>
 `;
+
+export const sitemap = functions
+  .region("us-central1")
+  .https.onRequest((request, response) => {
+    response.setHeader("content-type", "application/xml");
+    response.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pathToXml("")}
+</urlset>`);
+  });

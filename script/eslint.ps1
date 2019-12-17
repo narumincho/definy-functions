@@ -1,1 +1,1 @@
-.\node_modules\.bin\npx eslint source/** --fix
+./node_modules/.bin/npx eslint source/** --fix
