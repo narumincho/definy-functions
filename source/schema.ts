@@ -5,6 +5,7 @@ import Maybe from "graphql/tsutils/Maybe";
 import { URL } from "url";
 import * as tool from "./tool";
 import * as database from "./database";
+import * as definyFirestoreType from "definy-firestore-type";
 
 const makeObjectFieldMap = <Type extends { [k in string]: unknown }>(
   args: Type extends { id: string } | { hash: string }
@@ -86,14 +87,16 @@ const makeQueryOrMutationField = <
   };
 };
 
-const graphQLNonNullList = (type: g.GraphQLNullableType) =>
+const graphQLNonNullList = (
+  type: g.GraphQLNullableType
+): g.GraphQLNonNull<g.GraphQLNullableType> =>
   g.GraphQLNonNull(g.GraphQLList(g.GraphQLNonNull(type)));
 
 /**
  * 新規登録かログインするためのURLを得る。
  */
 const getLogInUrl = makeQueryOrMutationField<
-  { service: type.SocialLoginService },
+  { service: definyFirestoreType.OpenIdConnectProvider },
   URL
 >({
   type: g.GraphQLNonNull(type.urlGraphQLType),
@@ -151,20 +154,37 @@ const getLogInUrl = makeQueryOrMutationField<
                     User
    ==========================================
 */
+const setUserData = async (
+  source: Return<definyFirestoreType.User & { id: definyFirestoreType.UserId }>
+): ReturnType<typeof database.getUser> => {
+  const userData = await database.getUser(source.id);
+  source = { ...source, name: userData.name };
+  source.name = userData.name;
+  source.imageFileHash = userData.imageFileHash;
+  source.introduction = userData.introduction;
+  source.createdAt = userData.createdAt;
+  source.branches = userData.branches;
+  return userData;
+};
+
 const userGraphQLType: g.GraphQLObjectType<
-  type.User,
+  definyFirestoreType.User,
   void,
   any
-> = new g.GraphQLObjectType<type.User>({
+> = new g.GraphQLObjectType<
+  definyFirestoreType.User & { id: definyFirestoreType.UserId }
+>({
   name: "User",
   fields: () =>
-    makeObjectFieldMap<type.User>({
+    makeObjectFieldMap<
+      definyFirestoreType.User & { id: definyFirestoreType.UserId }
+    >({
       id: {
         type: g.GraphQLNonNull(type.idGraphQLType),
         description: "ユーザーを識別するためのID"
       },
       name: makeObjectField({
-        type: g.GraphQLNonNull(type.userNameGraphQLType),
+        type: g.GraphQLNonNull(g.GraphQLString),
         description: "名前",
         args: {},
         resolve: async (source, args) => {
@@ -174,15 +194,15 @@ const userGraphQLType: g.GraphQLObjectType<
           return source.name;
         }
       }),
-      imageFileHash: makeObjectField({
+      imageHash: makeObjectField({
         type: g.GraphQLNonNull(type.hashGraphQLType),
         description: "丸くて小さいプロフィール画像" + type.fileHashDescription,
         args: {},
         resolve: async (source, args) => {
-          if (source.imageFileHash === undefined) {
+          if (source.imageHash === undefined) {
             return (await setUserData(source)).imageFileHash;
           }
-          return source.imageFileHash;
+          return source.imageHash;
         }
       }),
       introduction: makeObjectField({
@@ -207,7 +227,7 @@ const userGraphQLType: g.GraphQLObjectType<
           return source.createdAt;
         }
       }),
-      branches: makeObjectField({
+      branchIds: makeObjectField({
         type: graphQLNonNullList(branchGraphQLType),
         description: "所有のしているプロジェクトのブランチ",
         args: {},
@@ -217,21 +237,19 @@ const userGraphQLType: g.GraphQLObjectType<
           }
           return source.branches;
         }
+      }),
+      likedProjectIds: makeObjectField({
+        type: graphQLNonNullList(projectGraphQLType),
+        description: "いいねしたプロジェクト",
+        args: {},
+        resolve: async (source, args) => {
+          if (source.likedProjectIds === undefined) {
+            return await setUserData(source);
+          }
+        }
       })
     })
 });
-
-const setUserData = async (
-  source: Return<type.User>
-): ReturnType<typeof database.getUser> => {
-  const userData = await database.getUser(source.id);
-  source.name = userData.name;
-  source.imageFileHash = userData.imageFileHash;
-  source.introduction = userData.introduction;
-  source.createdAt = userData.createdAt;
-  source.branches = userData.branches;
-  return userData;
-};
 
 /* ==========================================
                 Project
@@ -248,13 +266,13 @@ const setProjectData = async (
 };
 
 const projectGraphQLType: g.GraphQLObjectType<
-  type.Project,
+  definyFirestoreType.Project,
   void,
   any
 > = new g.GraphQLObjectType({
   name: "Project",
   fields: () =>
-    makeObjectFieldMap<type.Project>({
+    makeObjectFieldMap<definyFirestoreType.Project>({
       id: {
         type: g.GraphQLNonNull(type.idGraphQLType),
         description: "プロジェクトを識別するためのID"
@@ -303,7 +321,7 @@ const projectGraphQLType: g.GraphQLObjectType<
 const branchGraphQLType = new g.GraphQLObjectType({
   name: "Branch",
   fields: () =>
-    makeObjectFieldMap<type.Branch>({
+    makeObjectFieldMap<definyFirestoreType.Branch>({
       id: {
         type: g.GraphQLNonNull(type.idGraphQLType),
         description: "ブランチを識別するためのID"

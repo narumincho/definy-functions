@@ -73,6 +73,9 @@ type UserLowCost = {
   readonly branches: ReadonlyArray<{
     id: definyFirestoreType.BranchId;
   }>;
+  readonly likedProjects: ReadonlyArray<{
+    id: definyFirestoreType.ProjectId;
+  }>;
 };
 
 /**

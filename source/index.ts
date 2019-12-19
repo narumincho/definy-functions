@@ -81,10 +81,12 @@ export const indexHtml = functions.https.onRequest((request, response) => {
             height: 100%;
             margin: 0;
             background-color: black;
+            display: grid;
         }
 
         * {
             box-sizing: border-box;
+            color: white;
         }
     </style>
 
