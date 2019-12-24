@@ -17,6 +17,7 @@
     "no-template-curly-in-string": ["error"],
     "eqeqeq": ["error", "always"],
     "no-caller": ["error"],
+    "no-constant-condition": ["error", { "checkLoops": false }],
     "no-else-return": ["error", { "allowElseIf": false }],
     "no-eval": ["error"],
     "no-extend-native": ["error"],
