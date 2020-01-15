@@ -13,24 +13,24 @@
     "node": "10"
   },
   "dependencies": {
-    "axios": "^0.19.0",
+    "axios": "^0.19.1",
     "express-graphql": "^0.9.0",
-    "firebase-admin": "^8.8.0",
+    "firebase-admin": "^8.9.0",
     "firebase-functions": "^3.3.0",
     "graphql": "^14.5.8",
     "jsonwebtoken": "^8.5.1"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^8.3.5",
-    "@types/node": "^12.12.17",
-    "@typescript-eslint/eslint-plugin": "^2.11.0",
-    "@typescript-eslint/parser": "^2.11.0",
+    "@types/jsonwebtoken": "^8.3.6",
+    "@types/node": "^13.1.7",
+    "@typescript-eslint/eslint-plugin": "^2.16.0",
+    "@typescript-eslint/parser": "^2.16.0",
     "definy-firestore-type": "0.0.16",
-    "eslint": "^6.7.2",
-    "eslint-config-prettier": "^6.7.0",
-    "eslint-plugin-prettier": "^3.1.1",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typed-admin-firestore": "0.0.3",
-    "typescript": "^3.7.3"
+    "typed-admin-firestore": "0.0.7",
+    "typescript": "^3.7.4"
   }
 }
