@@ -1,6 +1,10 @@
 import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
+import { URL } from "url";
 
+const hostName = "definy-lang.web.app";
+
+const origin = "https://" + hostName;
 /* =====================================================================
  *               Index Html ブラウザが最初にリクエストするところ
  *
@@ -11,8 +15,8 @@ import * as html from "@narumincho/html";
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  if (request.hostname !== "definy-lang.web.app") {
-    response.redirect("https://definy-lang.web.app");
+  if (request.hostname !== hostName) {
+    response.redirect(origin);
     return;
   }
   response.status(200);
@@ -22,9 +26,10 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       appName: "Definy",
       pageName: "Definy",
       iconPath: ["assets", "icon.png"],
-      coverImageUrl: "https://definy-lang.web.app/assets/icon.png",
+      coverImageUrl: new URL(origin + "/assets/icon.png"),
       description: "ブラウザで動作する革新的なプログラミング言語",
-      scriptUrlList: ["/main.js"],
+      scriptUrlList: [new URL(origin + "/main.js")],
+      styleUrlList: [],
       javaScriptMustBeAvailable: true,
       twitterCard: html.TwitterCard.SummaryCard,
       language: html.Language.Japanese,
@@ -58,7 +63,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       box-sizing: border-box;
       color: white;
   }`,
-      body: [html.div(null, "Loading Definy ...")]
+      body: [html.div({}, "Loading Definy ...")]
     })
   );
 });
