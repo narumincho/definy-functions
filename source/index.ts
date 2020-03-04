@@ -27,7 +27,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       pageName: "Definy",
       iconPath: ["assets", "icon.png"],
       coverImageUrl: new URL(origin + "/assets/icon.png"),
-      description: "ブラウザで動作する革新的なプログラミング言語",
+      description: "ブラウザで動作する革新的なプログラミング言語!",
       scriptUrlList: [new URL(origin + "/main.js")],
       styleUrlList: [],
       javaScriptMustBeAvailable: true,

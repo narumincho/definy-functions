@@ -1,1 +1,0 @@
-./node_modules/.bin/npx eslint source/** --fix

@@ -1,0 +1,25 @@
+name: build and deploy functions
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    name: build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@master
+      - name: Install npm dependencies (npm ci)
+        run: npm ci
+      - name: Transpile TypeScript (npx tsc)
+        run: npx tsc
+      - name: deploy functions to firebase
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          PROJECT_ID: definy-lang
