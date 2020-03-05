@@ -1,10 +1,10 @@
 import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
 import { URL } from "url";
+import * as common from "definy-common";
 
-const hostName = "definy-lang.web.app";
+type Origin = { _: "releaseOrigin" } | { _: "debugOrigin"; portNumber: number };
 
-const origin = "https://" + hostName;
 /* =====================================================================
  *               Index Html ブラウザが最初にリクエストするところ
  *
@@ -15,8 +15,8 @@ const origin = "https://" + hostName;
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  if (request.hostname !== hostName) {
-    response.redirect(origin);
+  if ("https://" + request.hostname !== common.origin) {
+    response.redirect(common.origin);
     return;
   }
   response.status(200);
@@ -26,15 +26,15 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       appName: "Definy",
       pageName: "Definy",
       iconPath: ["assets", "icon.png"],
-      coverImageUrl: new URL(origin + "/assets/icon.png"),
+      coverImageUrl: new URL(common.origin + "/assets/icon.png"),
       description: "ブラウザで動作する革新的なプログラミング言語!",
-      scriptUrlList: [new URL(origin + "/main.js")],
+      scriptUrlList: [new URL(common.origin + "/main.js")],
       styleUrlList: [],
       javaScriptMustBeAvailable: true,
       twitterCard: html.TwitterCard.SummaryCard,
       language: html.Language.Japanese,
       manifestPath: ["assets", "manifest.json"],
-      origin: "https://definy-lang.web.app",
+      origin: common.origin,
       path: request.url.substring(1).split("/"),
       style: `/*
       Hack typeface https://github.com/source-foundry/Hack
@@ -67,3 +67,79 @@ export const indexHtml = functions.https.onRequest((request, response) => {
     })
   );
 });
+
+/* =====================================================================
+ *               Api データを取得したり変更したりする
+ *    https://us-central1-definy-lang.cloudfunctions.net/indexHtml
+ * =====================================================================
+ */
+export const api = functions.https.onRequest((request, response) => {
+  const corsResult = supportCrossOriginResourceSharing(request, response);
+  if (!corsResult.isNecessaryMainProcessing) {
+    return;
+  }
+  switch (request.path) {
+    case "/requestLogInUrl": {
+      const binary = new Uint8Array(request.body as Buffer);
+      const requestData = common.data.decodeCustomRequestLogInUrlRequestData(
+        0,
+        binary
+      ).result;
+      response.send(
+        "やったぜ. データを受け取った data = " + JSON.stringify(requestData)
+      );
+    }
+  }
+  response.send("想定外の入力を受けた request.path=" + request.path);
+});
+
+/**
+ * CrossOriginResourceSharing の 処理をする
+ */
+const supportCrossOriginResourceSharing = (
+  request: functions.https.Request,
+  response: functions.Response
+): { isNecessaryMainProcessing: boolean; origin: Origin } => {
+  response.setHeader("vary", "Origin");
+  const headerOrigin = request.headers["origin"];
+  if (typeof headerOrigin === "string") {
+    const localHostPort = headerOrigin.match(/http:\/\/localhost:(\d+)/);
+    if (localHostPort !== null) {
+      const origin: Origin = {
+        _: "debugOrigin",
+        portNumber: Number.parseInt(localHostPort[1], 10)
+      };
+      response.setHeader("access-control-allow-origin", headerOrigin);
+      if (request.method === "OPTIONS") {
+        response.setHeader(
+          "access-control-allow-methods",
+          "POST, GET, OPTIONS"
+        );
+        response.setHeader("access-control-allow-headers", "content-type");
+        response.status(200).send("");
+        return {
+          origin,
+          isNecessaryMainProcessing: false
+        };
+      }
+      return {
+        origin,
+        isNecessaryMainProcessing: true
+      };
+    }
+  }
+  response.setHeader("access-control-allow-origin", common.origin);
+  if (request.method === "OPTIONS") {
+    response.setHeader("access-control-allow-methods", "POST, GET, OPTIONS");
+    response.setHeader("access-control-allow-headers", "content-type");
+    response.status(200).send("");
+    return {
+      origin: { _: "releaseOrigin" },
+      isNecessaryMainProcessing: false
+    };
+  }
+  return {
+    origin: { _: "releaseOrigin" },
+    isNecessaryMainProcessing: true
+  };
+};
