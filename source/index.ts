@@ -15,15 +15,17 @@ type Origin = { _: "releaseOrigin" } | { _: "debugOrigin"; portNumber: number };
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = request.hostname + request.path;
+  const requestUrl = "https://" + request.hostname + request.path;
   const languageAndLocation: common.data.LanguageAndLocation = common.urlToLanguageAndLocation(
     requestUrl
   );
   const normalizedUrl = common.languageAndLocationToUrl(languageAndLocation);
-  if (requestUrl !== normalizedUrl) {
-    response.redirect(normalizedUrl, 301);
-    return;
-  }
+  console.log("requestUrl", requestUrl);
+  console.log("normalizedUrl", normalizedUrl);
+  // if (requestUrl !== normalizedUrl) {
+  //   response.(normalizedUrl, 301);
+  //   return;
+  // }
   response.status(200);
   response.setHeader("content-type", "text/html");
   response.send(
