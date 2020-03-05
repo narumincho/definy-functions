@@ -15,17 +15,17 @@ type Origin = { _: "releaseOrigin" } | { _: "debugOrigin"; portNumber: number };
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = "https://" + request.hostname + request.path;
+  const requestUrl = "https://" + request.hostname + request.originalUrl;
   const languageAndLocation: common.data.LanguageAndLocation = common.urlToLanguageAndLocation(
     requestUrl
   );
   const normalizedUrl = common.languageAndLocationToUrl(languageAndLocation);
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
-  // if (requestUrl !== normalizedUrl) {
-  //   response.(normalizedUrl, 301);
-  //   return;
-  // }
+  if (requestUrl !== normalizedUrl) {
+    response.redirect(normalizedUrl, 301);
+    return;
+  }
   response.status(200);
   response.setHeader("content-type", "text/html");
   response.send(
@@ -41,8 +41,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       twitterCard: html.TwitterCard.SummaryCard,
       language: html.Language.Japanese,
       manifestPath: ["assets", "manifest.json"],
-      origin: common.origin,
-      path: new URL(normalizedUrl).pathname.substring(1).split("/"),
+      url: new URL(normalizedUrl),
       style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
