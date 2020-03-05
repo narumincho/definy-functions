@@ -15,8 +15,13 @@ type Origin = { _: "releaseOrigin" } | { _: "debugOrigin"; portNumber: number };
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  if ("https://" + request.hostname !== common.origin) {
-    response.redirect(common.origin);
+  const requestUrl = request.hostname + request.path;
+  const languageAndLocation: common.data.LanguageAndLocation = common.urlToLanguageAndLocation(
+    requestUrl
+  );
+  const normalizedUrl = common.languageAndLocationToUrl(languageAndLocation);
+  if (requestUrl !== normalizedUrl) {
+    response.redirect(normalizedUrl, 301);
     return;
   }
   response.status(200);
@@ -27,7 +32,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       pageName: "Definy",
       iconPath: ["assets", "icon.png"],
       coverImageUrl: new URL(common.origin + "/assets/icon.png"),
-      description: "ブラウザで動作する革新的なプログラミング言語!",
+      description: description(languageAndLocation),
       scriptUrlList: [new URL(common.origin + "/main.js")],
       styleUrlList: [],
       javaScriptMustBeAvailable: true,
@@ -35,7 +40,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       language: html.Language.Japanese,
       manifestPath: ["assets", "manifest.json"],
       origin: common.origin,
-      path: request.url.substring(1).split("/"),
+      path: new URL(normalizedUrl).pathname.substring(1).split("/"),
       style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
@@ -63,14 +68,38 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       box-sizing: border-box;
       color: white;
   }`,
-      body: [html.div({}, "Loading Definy ...")]
+      body: [html.div({}, loadingMessage(languageAndLocation.language))]
     })
   );
 });
 
+const loadingMessage = (language: common.data.Language): string => {
+  switch (language) {
+    case "English":
+      return "Loading Definy ...";
+    case "Japanese":
+      return "Definyを読込中……";
+    case "Esperanto":
+      return "Ŝarĝante Definy ...";
+  }
+};
+
+const description = (
+  languageAndLocation: common.data.LanguageAndLocation
+): string => {
+  switch (languageAndLocation.language) {
+    case "English":
+      return "Definy is Web App for Web App.";
+    case "Japanese":
+      return "ブラウザで動作する革新的なプログラミング言語!";
+    case "Esperanto":
+      return "Noviga programlingvo, kiu funkcias en la retumilo";
+  }
+};
+
 /* =====================================================================
  *               Api データを取得したり変更したりする
- *    https://us-central1-definy-lang.cloudfunctions.net/indexHtml
+ *    https://us-central1-definy-lang.cloudfunctions.net/api
  * =====================================================================
  */
 export const api = functions.https.onRequest((request, response) => {
