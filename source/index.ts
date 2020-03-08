@@ -32,7 +32,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
     html.toString({
       appName: "Definy",
       pageName: "Definy",
-      iconPath: ["assets", "icon.png"],
+      iconPath: ["icon"],
       coverImageUrl: new URL(common.origin + "/assets/icon.png"),
       description: description(languageAndLocation),
       scriptUrlList: [new URL(common.origin + "/main.js")],
