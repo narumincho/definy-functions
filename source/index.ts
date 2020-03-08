@@ -33,14 +33,14 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       appName: "Definy",
       pageName: "Definy",
       iconPath: ["icon"],
-      coverImageUrl: new URL(common.origin + "/assets/icon.png"),
+      coverImageUrl: new URL(common.origin + "/icon.png"),
       description: description(languageAndLocation),
       scriptUrlList: [new URL(common.origin + "/main.js")],
       styleUrlList: [],
       javaScriptMustBeAvailable: true,
       twitterCard: html.TwitterCard.SummaryCard,
       language: html.Language.Japanese,
-      manifestPath: ["assets", "manifest.json"],
+      manifestPath: ["manifest.json"],
       url: new URL(normalizedUrl),
       style: `/*
       Hack typeface https://github.com/source-foundry/Hack
@@ -51,7 +51,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       font-family: "Hack";
       font-weight: 400;
       font-style: normal;
-      src: url("/assets/hack-regular-subset.woff2") format("woff2");
+      src: url("/hack-regular-subset.woff2") format("woff2");
   }
 
   html {
