@@ -10,10 +10,20 @@ type AccessTokenHash = string & { _accessTokenHash: never };
 
 type FileHash = string & { _fileToken: never };
 
-const dataBase = (app.firestore() as unknown) as typedFirestore.Firestore<{
-  user: {
-    key: common.data.UserId;
-    value: UserData;
+const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
+  googleState: {
+    key: string;
+    value: StateData;
+    subCollections: {};
+  };
+  lineState: {
+    key: string;
+    value: StateData;
+    subCollections: {};
+  };
+  gitHubState: {
+    key: string;
+    value: StateData;
     subCollections: {};
   };
   accessToken: {
@@ -21,7 +31,16 @@ const dataBase = (app.firestore() as unknown) as typedFirestore.Firestore<{
     value: AccessTokenData;
     subCollections: {};
   };
+  user: {
+    key: common.data.UserId;
+    value: UserData;
+    subCollections: {};
+  };
 }>;
+
+type StateData = {
+  createdAt: admin.firestore.Timestamp;
+};
 
 /**
  * アクセストークンに含まれるデータ
@@ -80,13 +99,116 @@ type OpenIdConnectProviderAndId = {
 export const requestLogInUrl = async (
   requestLogInUrlRequestData: common.data.RequestLogInUrlRequestData
 ): Promise<URL> => {
-  return new URL("https://www.google.com/");
+  const state = createRandomId();
+  await createStateDocument(
+    requestLogInUrlRequestData.openIdConnectProvider,
+    state,
+    admin.firestore.Timestamp.now()
+  );
+  return logInUrlFromOpenIdConnectProviderAndState(
+    requestLogInUrlRequestData.openIdConnectProvider,
+    state
+  );
+};
+
+const createStateDocument = async (
+  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  state: string,
+  createdAt: admin.firestore.Timestamp
+): Promise<void> => {
+  switch (openIdConnectProvider) {
+    case "Google":
+      await database
+        .collection("googleState")
+        .doc(state)
+        .create({
+          createdAt: createdAt
+        });
+      return;
+    case "GitHub":
+      await database
+        .collection("gitHubState")
+        .doc(state)
+        .create({
+          createdAt: createdAt
+        });
+      return;
+    case "Line":
+      await database
+        .collection("lineState")
+        .doc(state)
+        .create({
+          createdAt: createdAt
+        });
+      return;
+  }
+};
+
+const logInUrlFromOpenIdConnectProviderAndState = (
+  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  state: string
+): URL => {
+  switch (openIdConnectProvider) {
+    case "Google":
+      return createUrl(
+        "https://accounts.google.com/o/oauth2/v2/auth",
+        new Map([
+          ["response_type", "code"],
+          [
+            "client_id",
+            "8347840964-l3796imv2d11d0qi8cnb6r48n5jabk9t.apps.googleusercontent.com"
+          ],
+          ["redirect_uri", logInRedirectUri("Google")],
+          ["scope", "profile openid"],
+          ["state", state]
+        ])
+      );
+    case "GitHub":
+      return createUrl(
+        "https://github.com/login/oauth/authorize",
+        new Map([
+          ["response_type", "code"],
+          ["client_id", "b35031a84487b285978e"],
+          ["redirect_uri", logInRedirectUri("GitHub")],
+          ["scope", "read:user"],
+          ["state", state]
+        ])
+      );
+    case "Line":
+      return createUrl(
+        "https://access.line.me/oauth2/v2.1/authorize",
+        new Map([
+          ["response_type", "code"],
+          ["client_id", "1574443672"],
+          ["redirect_uri", logInRedirectUri("Line")],
+          ["scope", "profile openid"],
+          ["state", state]
+        ])
+      );
+  }
+};
+
+const createUrl = (
+  originAndPath: string,
+  query: ReadonlyMap<string, string>
+): URL => {
+  const url = new URL(originAndPath);
+  for (const [key, value] of query) {
+    url.searchParams.append(key, value);
+  }
+  return url;
 };
 
 /**
  * Id。各種リソースを識別するために使うID。UUID(v4)やIPv6と同じ128bit, 16bytes
  * 小文字に統一して、大文字は使わない。長さは32文字
  */
-export const createRandomId = (): string => {
+const createRandomId = (): string => {
   return crypto.randomBytes(16).toString("hex");
 };
+
+const logInRedirectUri = (
+  openIdConnectProvider: common.data.OpenIdConnectProvider
+): string =>
+  "https://us-central1-definy-lang.cloudfunctions.net/logInCallback/" +
+  (openIdConnectProvider as string);

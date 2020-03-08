@@ -184,3 +184,8 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
   }
   return common.releaseOrigin;
 };
+
+export const logInCallback = functions.https.onRequest((request, response) => {
+  console.log(request);
+  response.send("ok");
+});
