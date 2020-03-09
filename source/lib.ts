@@ -40,6 +40,7 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
 
 type StateData = {
   createdAt: admin.firestore.Timestamp;
+  urlData: common.data.UrlData;
 };
 
 /**
@@ -101,7 +102,7 @@ export const requestLogInUrl = async (
 ): Promise<URL> => {
   const state = createRandomId();
   await createStateDocument(
-    requestLogInUrlRequestData.openIdConnectProvider,
+    requestLogInUrlRequestData,
     state,
     admin.firestore.Timestamp.now()
   );
@@ -112,34 +113,32 @@ export const requestLogInUrl = async (
 };
 
 const createStateDocument = async (
-  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  requestLogInUrlRequestData: common.data.RequestLogInUrlRequestData,
   state: string,
   createdAt: admin.firestore.Timestamp
 ): Promise<void> => {
-  switch (openIdConnectProvider) {
+  const stateData: StateData = {
+    createdAt: createdAt,
+    urlData: requestLogInUrlRequestData.urlData
+  };
+  switch (requestLogInUrlRequestData.openIdConnectProvider) {
     case "Google":
       await database
         .collection("googleState")
         .doc(state)
-        .create({
-          createdAt: createdAt
-        });
+        .create(stateData);
       return;
     case "GitHub":
       await database
         .collection("gitHubState")
         .doc(state)
-        .create({
-          createdAt: createdAt
-        });
+        .create(stateData);
       return;
     case "Line":
       await database
         .collection("lineState")
         .doc(state)
-        .create({
-          createdAt: createdAt
-        });
+        .create(stateData);
       return;
   }
 };
