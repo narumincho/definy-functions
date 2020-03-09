@@ -134,10 +134,11 @@ const esperantoDescription = (location: common.data.Location): string => {
  *    https://us-central1-definy-lang.cloudfunctions.net/api
  * =====================================================================
  */
-export const api = functions.https.onRequest((request, response) => {
+export const api = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }
+  response.setHeader("content-type", "application/octet-stream");
   switch (request.path) {
     case "/requestLogInUrl": {
       const binary = new Uint8Array(request.body as Buffer);
@@ -145,9 +146,9 @@ export const api = functions.https.onRequest((request, response) => {
         0,
         binary
       ).result;
-      lib.requestLogInUrl(requestData).then(e => {
-        response.send(e.toString());
-      });
+      const url = await lib.requestLogInUrl(requestData);
+      response.send(common.data.encodeString(url.toString()));
+      return;
     }
   }
   response.send("想定外の入力を受けた request.path=" + request.path);
