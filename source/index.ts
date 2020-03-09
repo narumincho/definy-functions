@@ -146,7 +146,7 @@ export const api = functions.https.onRequest(async (request, response) => {
         binary
       ).result;
       const url = await lib.requestLogInUrl(requestData);
-      response.send(new Uint8Array(common.data.encodeString(url.toString())));
+      response.send(Buffer.from(common.data.encodeString(url.toString())));
       return;
     }
   }
