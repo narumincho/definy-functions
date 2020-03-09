@@ -138,7 +138,6 @@ export const api = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }
-  response.setHeader("content-type", "application/octet-stream");
   switch (request.path) {
     case "/requestLogInUrl": {
       const binary = new Uint8Array(request.body as Buffer);
@@ -147,7 +146,7 @@ export const api = functions.https.onRequest(async (request, response) => {
         binary
       ).result;
       const url = await lib.requestLogInUrl(requestData);
-      response.send(common.data.encodeString(url.toString()));
+      response.send(new Uint8Array(common.data.encodeString(url.toString())));
       return;
     }
   }
