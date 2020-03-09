@@ -8,8 +8,6 @@ const app = admin.initializeApp();
 
 type AccessTokenHash = string & { _accessTokenHash: never };
 
-type FileHash = string & { _fileToken: never };
-
 const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
   googleState: {
     key: string;
@@ -70,7 +68,7 @@ type UserData = {
   /**
    * プロフィール画像
    */
-  readonly imageHash: FileHash;
+  readonly imageHash: common.data.FileHash;
   /**
    * 自己紹介文。改行文字を含めることができる。
    *
@@ -81,8 +79,10 @@ type UserData = {
   readonly createdAt: admin.firestore.Timestamp;
   /** プロジェクトに対する いいね */
   readonly likedProjectIdList: ReadonlyArray<common.data.ProjectId>;
-  /** 他のユーザーから見られたくない、個人的なプロジェクトに対する いいね */
-  readonly bookmarkedProjectIdList: ReadonlyArray<common.data.ProjectId>;
+
+  readonly developedProjectIdList: ReadonlyArray<common.data.ProjectId>;
+
+  readonly commentedIdeaIdList: ReadonlyArray<common.data.IdeaId>;
   /** 最後にログインしたアクセストークンのハッシュ値 */
   readonly lastAccessTokenHash: AccessTokenHash;
   /** ユーザーのログイン */
@@ -185,6 +185,45 @@ const logInUrlFromOpenIdConnectProviderAndState = (
         ])
       );
   }
+};
+
+export const getUser = async (
+  userId: common.data.UserId
+): Promise<common.data.Result<common.data.UserPublic, string>> => {
+  const data = (
+    await database
+      .collection("user")
+      .doc(userId)
+      .get()
+  ).data();
+  if (data === undefined) {
+    return common.data.resultError(
+      "ユーザーが見つからなかった id=" + (userId as string)
+    );
+  }
+  return common.data.resultOk({
+    name: data.name,
+    imageHash: data.imageHash,
+    introduction: data.introduction,
+    createdAt: firestoreTimestampToDateTime(data.createdAt),
+    likedProjectIdList: data.likedProjectIdList,
+    developedProjectIdList: data.developedProjectIdList,
+    commentedIdeaIdList: []
+  });
+};
+
+const firestoreTimestampToDateTime = (
+  timestamp: admin.firestore.Timestamp
+): common.data.DateTime => {
+  const date = timestamp.toDate();
+  return {
+    year: 10000 + date.getUTCFullYear(),
+    month: 1 + date.getUTCMonth(),
+    day: date.getUTCDate(),
+    hour: date.getUTCHours(),
+    minute: date.getUTCMinutes(),
+    second: date.getUTCSeconds()
+  };
 };
 
 const createUrl = (
