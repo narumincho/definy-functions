@@ -15,7 +15,7 @@
   "dependencies": {
     "@narumincho/html": "0.1.1",
     "axios": "^0.19.2",
-    "definy-common": "^0.1.4",
+    "definy-common": "^0.1.5",
     "firebase-admin": "^8.9.2",
     "firebase-functions": "^3.3.0",
     "jsonwebtoken": "^8.5.1"
