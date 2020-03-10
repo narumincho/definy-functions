@@ -9,17 +9,7 @@ const app = admin.initializeApp();
 type AccessTokenHash = string & { _accessTokenHash: never };
 
 const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
-  googleState: {
-    key: string;
-    value: StateData;
-    subCollections: {};
-  };
-  lineState: {
-    key: string;
-    value: StateData;
-    subCollections: {};
-  };
-  gitHubState: {
+  openConnectState: {
     key: string;
     value: StateData;
     subCollections: {};
@@ -39,6 +29,7 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
 type StateData = {
   createdAt: admin.firestore.Timestamp;
   urlData: common.data.UrlData;
+  provider: common.data.OpenIdConnectProvider;
 };
 
 /**
@@ -119,28 +110,13 @@ const createStateDocument = async (
 ): Promise<void> => {
   const stateData: StateData = {
     createdAt: createdAt,
-    urlData: requestLogInUrlRequestData.urlData
+    urlData: requestLogInUrlRequestData.urlData,
+    provider: requestLogInUrlRequestData.openIdConnectProvider
   };
-  switch (requestLogInUrlRequestData.openIdConnectProvider) {
-    case "Google":
-      await database
-        .collection("googleState")
-        .doc(state)
-        .create(stateData);
-      return;
-    case "GitHub":
-      await database
-        .collection("gitHubState")
-        .doc(state)
-        .create(stateData);
-      return;
-    case "Line":
-      await database
-        .collection("lineState")
-        .doc(state)
-        .create(stateData);
-      return;
-  }
+  await database
+    .collection("openConnectState")
+    .doc(state)
+    .create(stateData);
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
