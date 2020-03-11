@@ -17,6 +17,9 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   const requestUrl = "https://" + request.hostname + request.path;
   const urlData: common.data.UrlData = common.urlDataFromUrl(requestUrl);
   const normalizedUrl = common.urlDataToUrl(urlData);
+  console.log("originalUrl", request.originalUrl);
+  console.log("origin", request.headers["origin"]);
+  console.log("query", request.query);
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
   if (requestUrl !== normalizedUrl) {
