@@ -149,17 +149,6 @@ const logInUrlFromOpenIdConnectProviderAndState = (
           ["state", state]
         ])
       );
-    case "Line":
-      return createUrl(
-        "https://access.line.me/oauth2/v2.1/authorize",
-        new Map([
-          ["response_type", "code"],
-          ["client_id", "1574443672"],
-          ["redirect_uri", logInRedirectUri("Line")],
-          ["scope", "profile openid"],
-          ["state", state]
-        ])
-      );
   }
 };
 

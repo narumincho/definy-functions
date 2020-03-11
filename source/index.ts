@@ -22,10 +22,10 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   console.log("query", request.query);
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
-  if (requestUrl !== normalizedUrl) {
-    response.redirect(301, normalizedUrl);
-    return;
-  }
+  // if (requestUrl !== normalizedUrl) {
+  //   response.redirect(301, normalizedUrl);
+  //   return;
+  // }
   response.status(200);
   response.setHeader("content-type", "text/html");
   response.send(
