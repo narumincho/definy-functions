@@ -20,7 +20,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
   if (requestUrl !== normalizedUrl) {
-    response.redirect(normalizedUrl, 301);
+    response.redirect(301, normalizedUrl);
     return;
   }
   response.status(200);
