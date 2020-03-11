@@ -14,7 +14,7 @@ import * as lib from "./lib";
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = "https://" + request.hostname + request.originalUrl;
+  const requestUrl = "https://" + request.hostname + request.path;
   const urlData: common.data.UrlData = common.urlDataFromUrl(requestUrl);
   const normalizedUrl = common.urlDataToUrl(urlData);
   console.log("requestUrl", requestUrl);
