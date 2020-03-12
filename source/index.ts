@@ -19,10 +19,10 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   const normalizedUrl = common.urlDataToUrl(urlData);
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
-  // if (requestUrl !== normalizedUrl) {
-  //   response.redirect(301, normalizedUrl);
-  //   return;
-  // }
+  if (requestUrl !== normalizedUrl) {
+    response.redirect(301, normalizedUrl);
+    return;
+  }
   response.status(200);
   response.setHeader("content-type", "text/html");
   response.send(
@@ -30,7 +30,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       appName: "Definy",
       pageName: "Definy",
       iconPath: ["icon"],
-      coverImageUrl: new URL(common.releaseOrigin + "/icon.png"),
+      coverImageUrl: new URL(common.releaseOrigin + "/icon"),
       description: description(urlData.language, urlData.location),
       scriptUrlList: [new URL(common.releaseOrigin + "/main.js")],
       styleUrlList: [],
