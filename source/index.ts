@@ -14,13 +14,15 @@ import * as lib from "./lib";
  */
 
 export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = "https://" + request.hostname + request.originalUrl;
+  const requestUrl = new URL(
+    "https://" + request.hostname + request.originalUrl
+  );
   const urlData: common.data.UrlData = common.urlDataFromUrl(requestUrl);
   const normalizedUrl = common.urlDataToUrl(urlData);
   console.log("requestUrl", requestUrl);
   console.log("normalizedUrl", normalizedUrl);
-  if (requestUrl !== normalizedUrl) {
-    response.redirect(301, normalizedUrl);
+  if (requestUrl.toString() !== normalizedUrl.toString()) {
+    response.redirect(301, normalizedUrl.toString());
     return;
   }
   response.status(200);
@@ -30,15 +32,15 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       appName: "Definy",
       pageName: "Definy",
       iconPath: ["icon"],
-      coverImageUrl: new URL(common.releaseOrigin + "/icon"),
+      coverImageUrl: new URL((common.releaseOrigin as string) + "/icon"),
       description: description(urlData.language, urlData.location),
-      scriptUrlList: [new URL(common.releaseOrigin + "/main.js")],
+      scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
       styleUrlList: [],
       javaScriptMustBeAvailable: true,
       twitterCard: html.TwitterCard.SummaryCard,
       language: html.Language.Japanese,
       manifestPath: ["manifest.json"],
-      url: new URL(normalizedUrl),
+      url: new URL(normalizedUrl.toString()),
       style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
@@ -206,12 +208,14 @@ export const logInCallback = functions.https.onRequest((request, response) => {
     console.log("codeかstateが送られて来なかった。ユーザーがキャンセルした?");
     response.redirect(
       301,
-      common.urlDataToUrl({
-        clientMode: common.data.clientModeRelease,
-        location: common.data.locationHome,
-        language: "English",
-        accessToken: common.data.maybeNothing()
-      })
+      common
+        .urlDataToUrl({
+          clientMode: common.data.clientModeRelease,
+          location: common.data.locationHome,
+          language: "English",
+          accessToken: common.data.maybeNothing()
+        })
+        .toString()
     );
     return;
   }

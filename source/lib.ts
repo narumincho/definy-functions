@@ -228,7 +228,7 @@ export const logInCallback = async (
   if (stateData === undefined || stateData.provider !== openIdConnectProvider) {
     throw new Error(
       "Definy do not generate state. openIdConnectProvider=" +
-        openIdConnectProvider
+        (openIdConnectProvider as string)
     );
   }
   const providerUserData: ProviderUserData = await getUserDataFromCode(
