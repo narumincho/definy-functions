@@ -149,6 +149,18 @@ export const api = functions.https.onRequest(async (request, response) => {
       response.send(Buffer.from(common.data.encodeString(url.toString())));
       return;
     }
+    case "/getUser": {
+      const binary = new Uint8Array(request.body as Buffer);
+      const userData = await lib.getUserData(
+        common.data.decodeId(0, binary).result as common.data.UserId
+      );
+      response.send(
+        Buffer.from(
+          common.data.encodeMaybe(common.data.encodeUserPublic)(userData)
+        )
+      );
+      return;
+    }
   }
   response.send("想定外の入力を受けた request.path=" + request.path);
 });

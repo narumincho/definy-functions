@@ -514,3 +514,23 @@ const issueAccessToken = (): {
     }
   };
 };
+
+export const getUserData = async (
+  userId: common.data.UserId
+): Promise<common.data.Maybe<common.data.UserPublic>> => {
+  const userData = (
+    await (await database.collection("user").doc(userId)).get()
+  ).data();
+  if (userData === undefined) {
+    return common.data.maybeNothing();
+  }
+  return common.data.maybeJust({
+    name: userData.name,
+    imageHash: userData.imageHash,
+    introduction: userData.introduction,
+    commentedIdeaIdList: userData.commentedIdeaIdList,
+    createdAt: firestoreTimestampToDateTime(userData.createdAt),
+    developedProjectIdList: userData.developedProjectIdList,
+    likedProjectIdList: userData.likedProjectIdList
+  });
+};
