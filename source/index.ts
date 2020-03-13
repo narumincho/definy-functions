@@ -192,7 +192,7 @@ const supportCrossOriginResourceSharing = (
 const allowOrigin = (httpHeaderOrigin: unknown): string => {
   if (
     typeof httpHeaderOrigin === "string" &&
-    /^http:\/\/localhost:\d+$/.test(httpHeaderOrigin)
+    httpHeaderOrigin.startsWith("http://[::1]")
   ) {
     return httpHeaderOrigin;
   }
