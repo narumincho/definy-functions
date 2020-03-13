@@ -3,20 +3,19 @@ import { URL } from "url";
 import * as admin from "firebase-admin";
 import * as typedFirestore from "typed-admin-firestore";
 import * as crypto from "crypto";
+import * as functions from "firebase-functions";
+import axios, { AxiosResponse } from "axios";
+import * as jsonWebToken from "jsonwebtoken";
 
 const app = admin.initializeApp();
 
 type AccessTokenHash = string & { _accessTokenHash: never };
 
+const storageDefaultBucket = app.storage().bucket();
 const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
   openConnectState: {
     key: string;
     value: StateData;
-    subCollections: {};
-  };
-  accessToken: {
-    key: AccessTokenHash;
-    value: AccessTokenData;
     subCollections: {};
   };
   user: {
@@ -30,16 +29,6 @@ type StateData = {
   createdAt: admin.firestore.Timestamp;
   urlData: common.data.UrlData;
   provider: common.data.OpenIdConnectProvider;
-};
-
-/**
- * アクセストークンに含まれるデータ
- */
-type AccessTokenData = {
-  /** アクセストークンを発行したユーザー */
-  readonly userId: common.data.UserId;
-  /** 発行日時 */
-  readonly issuedAt: admin.firestore.Timestamp;
 };
 
 /**
@@ -74,10 +63,20 @@ type UserData = {
   readonly developedProjectIdList: ReadonlyArray<common.data.ProjectId>;
 
   readonly commentedIdeaIdList: ReadonlyArray<common.data.IdeaId>;
-  /** 最後にログインしたアクセストークンのハッシュ値 */
-  readonly lastAccessTokenHash: AccessTokenHash;
+  /** アクセストークンのハッシュ値 */
+  readonly accessTokenHashList: ReadonlyArray<AccessTokenHashData>;
   /** ユーザーのログイン */
   readonly openIdConnect: OpenIdConnectProviderAndId;
+};
+
+/**
+ * アクセストークンに含まれるデータ
+ */
+type AccessTokenHashData = {
+  /** アクセストークンのハッシュ値 */
+  readonly accessTokenHash: AccessTokenHash;
+  /** 発行日時 */
+  readonly issuedAt: admin.firestore.Timestamp;
 };
 
 /** ソーシャルログインに関する情報 */
@@ -129,10 +128,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
         "https://accounts.google.com/o/oauth2/v2/auth",
         new Map([
           ["response_type", "code"],
-          [
-            "client_id",
-            "8347840964-l3796imv2d11d0qi8cnb6r48n5jabk9t.apps.googleusercontent.com"
-          ],
+          ["client_id", getOpenIdConnectClientId("Google")],
           ["redirect_uri", logInRedirectUri("Google")],
           ["scope", "profile openid"],
           ["state", state]
@@ -143,7 +139,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
         "https://github.com/login/oauth/authorize",
         new Map([
           ["response_type", "code"],
-          ["client_id", "b35031a84487b285978e"],
+          ["client_id", getOpenIdConnectClientId("GitHub")],
           ["redirect_uri", logInRedirectUri("GitHub")],
           ["scope", "read:user"],
           ["state", state]
@@ -215,3 +211,306 @@ const logInRedirectUri = (
 ): string =>
   "https://us-central1-definy-lang.cloudfunctions.net/logInCallback/" +
   (openIdConnectProvider as string);
+
+/**
+ * OpenIdConnectで外部ログインからの受け取ったデータを元にログイントークンの入ったURLを返す
+ * @param openIdConnectProvider
+ * @param code
+ * @param state
+ */
+export const logInCallback = async (
+  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  code: string,
+  state: string
+): Promise<common.data.UrlData> => {
+  const documentReference = database.collection("openConnectState").doc(state);
+  const stateData = (await documentReference.get()).data();
+  if (stateData === undefined || stateData.provider !== openIdConnectProvider) {
+    throw new Error(
+      "Definy do not generate state. openIdConnectProvider=" +
+        openIdConnectProvider
+    );
+  }
+  const providerUserData: ProviderUserData = await getUserDataFromCode(
+    openIdConnectProvider,
+    code
+  );
+  const openIdConnectProviderAndIdQuery: OpenIdConnectProviderAndId = {
+    idInProvider: providerUserData.id,
+    provider: openIdConnectProvider
+  };
+  const documentList = (
+    await database
+      .collection("user")
+      .where("openIdConnect", "==", openIdConnectProviderAndIdQuery)
+      .get()
+  ).docs;
+  if (documentList.length === 0) {
+    const accessToken = await createUser(
+      providerUserData,
+      openIdConnectProvider
+    );
+    return {
+      ...stateData.urlData,
+      accessToken: common.data.maybeJust(accessToken)
+    };
+  }
+  const userQueryDocumentSnapshot = documentList[0];
+  const userDocumentReference = userQueryDocumentSnapshot.ref;
+  const accessTokenData = issueAccessToken();
+  await userDocumentReference.update({
+    accessTokenHashList: admin.firestore.FieldValue.arrayUnion([
+      accessTokenData.accessTokenHashData
+    ])
+  });
+  return {
+    ...stateData.urlData,
+    accessToken: common.data.maybeJust(accessTokenData.accessToken)
+  };
+};
+
+type ProviderUserData = {
+  id: string;
+  name: string;
+  imageUrl: URL;
+};
+
+const getUserDataFromCode = async (
+  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  code: string
+): Promise<ProviderUserData> => {
+  switch (openIdConnectProvider) {
+    case "Google":
+      return getGoogleUserDataFromCode(code);
+    case "GitHub":
+      return getGitHubUserDataFromCode(code);
+  }
+};
+
+const getGoogleUserDataFromCode = async (
+  code: string
+): Promise<ProviderUserData> => {
+  const response = await axios.post(
+    createUrl(
+      "https://www.googleapis.com/oauth2/v4/token",
+      new Map([
+        ["grant_type", "authorization_code"],
+        ["code", code],
+        ["redirect_uri", logInRedirectUri("Google")],
+        ["client_id", getOpenIdConnectClientId("Google")],
+        ["client_secret", getOpenIdConnectClientSecret("Google")]
+      ])
+    ).toString(),
+    {
+      headers: {
+        "content-type": "application/x-www-form-urlencoded"
+      }
+    }
+  );
+  const idToken: string = response.data.id_token;
+  const decoded = jsonWebToken.decode(idToken);
+  if (typeof decoded === "string" || decoded === null) {
+    throw new Error("Google idToken not include object");
+  }
+  const markedDecoded = decoded as {
+    iss: unknown;
+    sub: unknown;
+    name: unknown;
+    picture: unknown;
+  };
+  if (
+    markedDecoded.iss !== "https://accounts.google.com" ||
+    typeof markedDecoded.name !== "string" ||
+    typeof markedDecoded.sub !== "string" ||
+    typeof markedDecoded.picture !== "string"
+  ) {
+    console.error(
+      "Googleから送られてきたIDトークンがおかしい" + markedDecoded.toString()
+    );
+    throw new Error("Google idToken is invalid");
+  }
+
+  return {
+    id: markedDecoded.sub,
+    name: markedDecoded.name,
+    imageUrl: new URL(markedDecoded.picture)
+  };
+};
+
+const getGitHubUserDataFromCode = async (
+  code: string
+): Promise<ProviderUserData> => {
+  const gitHubAccessToken = (
+    await axios.post(
+      createUrl(
+        "https://github.com/login/oauth/access_token",
+        new Map([
+          ["grant_type", "authorization_code"],
+          ["code", code],
+          ["redirect_uri", logInRedirectUri("GitHub")],
+          ["client_id", getOpenIdConnectClientId("GitHub")],
+          ["client_secret", getOpenIdConnectClientSecret("GitHub")]
+        ])
+      ).toString(),
+      {
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded"
+        }
+      }
+    )
+  ).data.access_token;
+  if (typeof gitHubAccessToken !== "string") {
+    throw new Error("LogInError: GitHub Oauth response is invalid");
+  }
+
+  const gitHubData = (
+    await axios.post(
+      "https://api.github.com/graphql",
+      {
+        query: `
+query {
+viewer {
+    id
+    name
+    avatarUrl
+}
+}
+`
+      },
+      {
+        headers: {
+          Authorization: "token " + gitHubAccessToken
+        }
+      }
+    )
+  ).data.data.viewer;
+  if (
+    gitHubData === undefined ||
+    gitHubData === null ||
+    typeof gitHubData === "string"
+  ) {
+    throw new Error("LogInError: GitHub API response is invalid");
+  }
+  const id: unknown = gitHubData.id;
+  const name: unknown = gitHubData.name;
+  const avatarUrl: unknown = gitHubData.avatarUrl;
+  if (
+    typeof id !== "string" ||
+    typeof name !== "string" ||
+    typeof avatarUrl !== "string"
+  ) {
+    throw new Error("LogInError: GitHub API response is invalid");
+  }
+  return {
+    id: id,
+    name: name,
+    imageUrl: new URL(avatarUrl)
+  };
+};
+
+const createUser = async (
+  providerUserData: ProviderUserData,
+  provider: common.data.OpenIdConnectProvider
+): Promise<common.data.AccessToken> => {
+  const imageHash = await getAndSaveUserImage(providerUserData.imageUrl);
+  const createdAt = admin.firestore.Timestamp.now();
+  const accessTokenData = issueAccessToken();
+  await database
+    .collection("user")
+    .doc(createRandomId() as common.data.UserId)
+    .create({
+      name: providerUserData.name,
+      commentedIdeaIdList: [],
+      createdAt: createdAt,
+      developedProjectIdList: [],
+      imageHash: imageHash,
+      introduction: "",
+      accessTokenHashList: [accessTokenData.accessTokenHashData],
+      likedProjectIdList: [],
+      openIdConnect: {
+        idInProvider: providerUserData.id,
+        provider: provider
+      }
+    });
+  return accessTokenData.accessToken;
+};
+
+const getAndSaveUserImage = async (
+  imageUrl: URL
+): Promise<common.data.FileHash> => {
+  const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
+    responseType: "arraybuffer"
+  });
+  const mimeType: string = response.headers["content-type"];
+  return await saveFile(response.data, mimeType);
+};
+
+/**
+ * Firebase Cloud Storage にファイルを保存する
+ * @returns ハッシュ値
+ */
+const saveFile = async (
+  buffer: Buffer,
+  mimeType: string
+): Promise<common.data.FileHash> => {
+  const hash = createHashFromBuffer(buffer, mimeType);
+  const file = storageDefaultBucket.file(hash);
+  await file.save(buffer, { contentType: mimeType });
+  return hash;
+};
+
+export const createHashFromBuffer = (
+  data: Buffer,
+  mimeType: string
+): common.data.FileHash =>
+  crypto
+    .createHash("sha256")
+    .update(data)
+    .update(mimeType, "utf8")
+    .digest("hex") as common.data.FileHash;
+
+/**
+ * OpenIdConnectのclientSecretはfirebaseの環境変数に設定されている
+ */
+const getOpenIdConnectClientSecret = (
+  openIdConnectProvider: common.data.OpenIdConnectProvider
+): string => {
+  return functions.config()["openidconnectclientsecret"][
+    openIdConnectProvider.toLowerCase()
+  ];
+};
+
+const getOpenIdConnectClientId = (
+  openIdConnectProvider: common.data.OpenIdConnectProvider
+): string => {
+  switch (openIdConnectProvider) {
+    case "Google":
+      return "8347840964-l3796imv2d11d0qi8cnb6r48n5jabk9t.apps.googleusercontent.com";
+    case "GitHub":
+      return "b35031a84487b285978e";
+  }
+};
+
+/**
+ * アクセストークンを生成する
+ */
+const issueAccessToken = (): {
+  accessToken: common.data.AccessToken;
+  accessTokenHashData: AccessTokenHashData;
+} => {
+  const accessToken = crypto
+    .randomBytes(32)
+    .toString("hex") as common.data.AccessToken;
+  const accessTokenHash = crypto
+    .createHash("sha256")
+    .update(new Uint8Array(common.data.encodeToken(accessToken)))
+    .digest("hex") as AccessTokenHash;
+  return {
+    accessToken: accessToken,
+    accessTokenHashData: {
+      accessTokenHash: accessTokenHash,
+      issuedAt: admin.firestore.Timestamp.now()
+    }
+  };
+};

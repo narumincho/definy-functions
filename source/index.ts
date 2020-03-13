@@ -187,5 +187,31 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
 
 export const logInCallback = functions.https.onRequest((request, response) => {
   console.log(request);
-  response.send("ok");
+  const openIdConnectProvider = request.path.substring(1);
+  const code: string | undefined = request.query.code;
+  const state: string | undefined = request.query.state;
+  if (code === undefined || state === undefined) {
+    console.log("codeかstateが送られて来なかった。ユーザーがキャンセルした?");
+    response.redirect(
+      301,
+      common.urlDataToUrl({
+        clientMode: common.data.clientModeRelease,
+        location: common.data.locationHome,
+        language: "English",
+        accessToken: common.data.maybeNothing()
+      })
+    );
+    return;
+  }
+  switch (openIdConnectProvider) {
+    case "Google":
+    case "GitHub": {
+      lib.logInCallback(openIdConnectProvider, code, state).then(result => {
+        response.redirect(301, common.urlDataToUrl(result).toString());
+      });
+      return;
+    }
+    default:
+      response.send("invalid OpenIdConnectProvider name =" + request.path);
+  }
 });
