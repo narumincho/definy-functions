@@ -19,8 +19,8 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   );
   const urlData: common.data.UrlData = common.urlDataFromUrl(requestUrl);
   const normalizedUrl = common.urlDataToUrl(urlData);
-  console.log("requestUrl", requestUrl);
-  console.log("normalizedUrl", normalizedUrl);
+  console.log("requestUrl", requestUrl.toString());
+  console.log("normalizedUrl", normalizedUrl.toString());
   if (requestUrl.toString() !== normalizedUrl.toString()) {
     response.redirect(301, normalizedUrl.toString());
     return;
