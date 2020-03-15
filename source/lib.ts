@@ -343,9 +343,9 @@ export const logInCallback = async (
   const userDocumentReference = userQueryDocumentSnapshot.ref;
   const accessTokenData = issueAccessToken();
   await userDocumentReference.update({
-    accessTokenHashList: admin.firestore.FieldValue.arrayUnion([
+    accessTokenHashList: admin.firestore.FieldValue.arrayUnion(
       accessTokenData.accessTokenHashData
-    ])
+    )
   });
   return {
     ...stateData.urlData,
