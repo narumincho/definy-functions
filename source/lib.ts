@@ -87,6 +87,90 @@ type OpenIdConnectProviderAndId = {
   readonly idInProvider: string;
 };
 
+type ReleasePartMeta = {
+  /** パーツの名前 */
+  name: MultiLanguageText;
+  /** 説明文 */
+  description: MultiLanguageText;
+  /** 属しているモジュール */
+  moduleId: string;
+  /** 語句.検索用 */
+  nounList: ReadonlyArray<string>;
+  /** 使用している型.検索用 */
+  usedTypeList: ReadonlyArray<string>;
+  /** 使用しているパーツ.検索用 */
+  usedPartList: ReadonlyArray<string>;
+  /** 型 */
+  type: TypeExpr;
+  /** 互換性が維持される間の過去のデータ */
+  before: ReadonlyArray<{
+    name: MultiLanguageText;
+    description: string;
+    oldAt: admin.firestore.Timestamp;
+  }>;
+  /** 作成元 (必ずしも削除されたパーツからではない) */
+  parent: ReadonlyArray<string>;
+  /** 移行先 (代用可ではない, 最新リリースで削除された(!=[])) */
+  destination: ReadonlyArray<string>;
+  /** 最終更新日時 */
+  updateAt: admin.firestore.Timestamp;
+  /** 作成日時 */
+  createdAt: admin.firestore.Timestamp;
+};
+
+type ReleaseTypeMeta = {
+  /** パーツの名前 */
+  name: MultiLanguageText;
+  /** 説明文 */
+  description: MultiLanguageText;
+  /** 属しているモジュール */
+  moduleId: string;
+  /** 語句.検索用 */
+  nounList: ReadonlyArray<string>;
+  /** 使用している型.検索用 */
+  usedTypeList: ReadonlyArray<string>;
+  /** 互換性が維持される間の過去のデータ */
+  before: ReadonlyArray<{
+    name: MultiLanguageText;
+    description: string;
+    oldAt: admin.firestore.Timestamp;
+  }>;
+  /** 作成元 (必ずしも削除された型からではない) */
+  parent: ReadonlyArray<string>;
+  /** 移行先 (代用可ではない, 最新リリースで削除された(!=[])) */
+  destination: ReadonlyArray<string>;
+  /** 定義本体 */
+  type: TypeBody;
+  /** 最終更新日時 */
+  updateAt: admin.firestore.Timestamp;
+  /** 作成日時 */
+  createdAt: admin.firestore.Timestamp;
+};
+
+type ReleaseModuleMeta = {
+  /** モジュール名 (階層を作ることができる) */
+  name: ReadonlyArray<MultiLanguageText>;
+  /** 属しているプロジェクト */
+  projectId: common.data.ProjectId;
+  /** 説明文 */
+  description: string;
+  /** 外部のプロジェクトに公開するかどうか */
+  export: boolean;
+  /** 作成日時 */
+  createdAt: admin.firestore.Timestamp;
+};
+
+type MultiLanguageText = {
+  en: string;
+  ja: string;
+};
+
+type TypeBody = {};
+
+type TypeExpr = {};
+
+type Expr = {};
+
 export const requestLogInUrl = async (
   requestLogInUrlRequestData: common.data.RequestLogInUrlRequestData
 ): Promise<URL> => {
