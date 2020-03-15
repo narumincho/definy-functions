@@ -315,6 +315,7 @@ export const logInCallback = async (
         (openIdConnectProvider as string)
     );
   }
+  documentReference.delete();
   const providerUserData: ProviderUserData = await getUserDataFromCode(
     openIdConnectProvider,
     code
