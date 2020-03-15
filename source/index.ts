@@ -140,32 +140,54 @@ export const api = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }
-  switch (request.path) {
-    case "/requestLogInUrl": {
-      const binary = new Uint8Array(request.body as Buffer);
+  const result = await callApiFunction(
+    request.path.split("/")[1],
+    new Uint8Array(request.body as Buffer)
+  );
+  switch (result._) {
+    case "Just":
+      response.send(Buffer.from(result.value));
+      return;
+    case "Nothing":
+      response.send("想定外のパスを受けとった request.path=" + request.path);
+      return;
+  }
+});
+
+const callApiFunction = async (
+  path: string,
+  binary: Uint8Array
+): Promise<common.data.Maybe<ReadonlyArray<number>>> => {
+  switch (path) {
+    case "requestLogInUrl": {
       const requestData = common.data.decodeRequestLogInUrlRequestData(
         0,
         binary
       ).result;
       const url = await lib.requestLogInUrl(requestData);
-      response.send(Buffer.from(common.data.encodeString(url.toString())));
-      return;
+      return common.data.maybeJust(common.data.encodeString(url.toString()));
     }
-    case "/getUser": {
-      const binary = new Uint8Array(request.body as Buffer);
+    case "getUserByAccessToken": {
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeUserPublicAndUserId)(
+          await lib.getUserByAccessToken(
+            common.data.decodeToken(0, binary).result as common.data.AccessToken
+          )
+        )
+      );
+    }
+    case "getUser": {
       const userData = await lib.getUserData(
         common.data.decodeId(0, binary).result as common.data.UserId
       );
-      response.send(
-        Buffer.from(
-          common.data.encodeMaybe(common.data.encodeUserPublic)(userData)
-        )
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeUserPublic)(userData)
       );
-      return;
     }
   }
-  response.send("想定外の入力を受けた request.path=" + request.path);
-});
+
+  return common.data.maybeNothing();
+};
 
 /**
  * CrossOriginResourceSharing の 処理をする.

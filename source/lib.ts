@@ -64,19 +64,11 @@ type UserData = {
 
   readonly commentedIdeaIdList: ReadonlyArray<common.data.IdeaId>;
   /** アクセストークンのハッシュ値 */
-  readonly accessTokenHashList: ReadonlyArray<AccessTokenHashData>;
+  readonly accessTokenHashList: Array<AccessTokenHash>;
+  /** アクセストークンを発行した日時 */
+  readonly accessTokenIssuedAtList: ReadonlyArray<admin.firestore.Timestamp>;
   /** ユーザーのログイン */
   readonly openIdConnect: OpenIdConnectProviderAndId;
-};
-
-/**
- * アクセストークンに含まれるデータ
- */
-type AccessTokenHashData = {
-  /** アクセストークンのハッシュ値 */
-  readonly accessTokenHash: AccessTokenHash;
-  /** 発行日時 */
-  readonly issuedAt: admin.firestore.Timestamp;
 };
 
 /** ソーシャルログインに関する情報 */
@@ -345,7 +337,10 @@ export const logInCallback = async (
   const accessTokenData = issueAccessToken();
   await userDocumentReference.update({
     accessTokenHashList: admin.firestore.FieldValue.arrayUnion(
-      accessTokenData.accessTokenHashData
+      accessTokenData.accessTokenHash
+    ),
+    accessTokenIssuedAtList: admin.firestore.FieldValue.arrayUnion(
+      accessTokenData.issuedAt
     )
   });
   return {
@@ -509,7 +504,8 @@ const createUser = async (
       developedProjectIdList: [],
       imageHash: imageHash,
       introduction: "",
-      accessTokenHashList: [accessTokenData.accessTokenHashData],
+      accessTokenHashList: [accessTokenData.accessTokenHash],
+      accessTokenIssuedAtList: [accessTokenData.issuedAt],
       likedProjectIdList: [],
       openIdConnect: {
         idInProvider: providerUserData.id,
@@ -580,22 +576,55 @@ const getOpenIdConnectClientId = (
  */
 const issueAccessToken = (): {
   accessToken: common.data.AccessToken;
-  accessTokenHashData: AccessTokenHashData;
+  accessTokenHash: AccessTokenHash;
+  issuedAt: admin.firestore.Timestamp;
 } => {
   const accessToken = crypto
     .randomBytes(32)
     .toString("hex") as common.data.AccessToken;
-  const accessTokenHash = crypto
+  return {
+    accessToken: accessToken,
+    accessTokenHash: hashAccessToken(accessToken),
+    issuedAt: admin.firestore.Timestamp.now()
+  };
+};
+
+const hashAccessToken = (
+  accessToken: common.data.AccessToken
+): AccessTokenHash =>
+  crypto
     .createHash("sha256")
     .update(new Uint8Array(common.data.encodeToken(accessToken)))
     .digest("hex") as AccessTokenHash;
-  return {
-    accessToken: accessToken,
-    accessTokenHashData: {
-      accessTokenHash: accessTokenHash,
-      issuedAt: admin.firestore.Timestamp.now()
+
+export const getUserByAccessToken = async (
+  accessToken: common.data.AccessToken
+): Promise<common.data.Maybe<common.data.UserPublicAndUserId>> => {
+  const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
+  const userDataDocs = (
+    await database
+      .collection("user")
+      .where("accessTokenHashList", "array-contains", accessTokenHash)
+      .get()
+  ).docs;
+  if (userDataDocs.length !== 1) {
+    return common.data.maybeNothing();
+  }
+  const queryDocumentSnapshot = userDataDocs[0];
+  const userData = queryDocumentSnapshot.data();
+
+  return common.data.maybeJust({
+    userId: queryDocumentSnapshot.id as common.data.UserId,
+    userPublic: {
+      name: userData.name,
+      imageHash: userData.imageHash,
+      introduction: userData.introduction,
+      commentedIdeaIdList: userData.commentedIdeaIdList,
+      createdAt: firestoreTimestampToDateTime(userData.createdAt),
+      developedProjectIdList: userData.developedProjectIdList,
+      likedProjectIdList: userData.likedProjectIdList
     }
-  };
+  });
 };
 
 export const getUserData = async (
