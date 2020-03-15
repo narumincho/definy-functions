@@ -375,16 +375,14 @@ const getGoogleUserDataFromCode = async (
   code: string
 ): Promise<ProviderUserData> => {
   const response = await axios.post(
-    createUrl(
-      "https://www.googleapis.com/oauth2/v4/token",
-      new Map([
-        ["grant_type", "authorization_code"],
-        ["code", code],
-        ["redirect_uri", logInRedirectUri("Google")],
-        ["client_id", getOpenIdConnectClientId("Google")],
-        ["client_secret", getOpenIdConnectClientSecret("Google")]
-      ])
-    ).toString(),
+    "https://www.googleapis.com/oauth2/v4/token",
+    new URLSearchParams([
+      ["grant_type", "authorization_code"],
+      ["code", code],
+      ["redirect_uri", logInRedirectUri("Google")],
+      ["client_id", getOpenIdConnectClientId("Google")],
+      ["client_secret", getOpenIdConnectClientSecret("Google")]
+    ]),
     {
       headers: {
         "content-type": "application/x-www-form-urlencoded"
@@ -424,18 +422,16 @@ const getGoogleUserDataFromCode = async (
 const getGitHubUserDataFromCode = async (
   code: string
 ): Promise<ProviderUserData> => {
-  const gitHubAccessToken = (
+  const responseData = (
     await axios.post(
-      createUrl(
-        "https://github.com/login/oauth/access_token",
-        new Map([
-          ["grant_type", "authorization_code"],
-          ["code", code],
-          ["redirect_uri", logInRedirectUri("GitHub")],
-          ["client_id", getOpenIdConnectClientId("GitHub")],
-          ["client_secret", getOpenIdConnectClientSecret("GitHub")]
-        ])
-      ).toString(),
+      "https://github.com/login/oauth/access_token",
+      new URLSearchParams([
+        ["grant_type", "authorization_code"],
+        ["code", code],
+        ["redirect_uri", logInRedirectUri("GitHub")],
+        ["client_id", getOpenIdConnectClientId("GitHub")],
+        ["client_secret", getOpenIdConnectClientSecret("GitHub")]
+      ]),
       {
         headers: {
           accept: "application/json",
@@ -443,8 +439,10 @@ const getGitHubUserDataFromCode = async (
         }
       }
     )
-  ).data.access_token;
-  if (typeof gitHubAccessToken !== "string") {
+  ).data;
+  const accessToken: unknown = responseData["access_token"];
+  if (typeof accessToken !== "string") {
+    console.error("GitHubからアクセストークンを取得できなかった", responseData);
     throw new Error("LogInError: GitHub Oauth response is invalid");
   }
 
@@ -464,7 +462,7 @@ viewer {
       },
       {
         headers: {
-          Authorization: "token " + gitHubAccessToken
+          Authorization: "token " + accessToken
         }
       }
     )
