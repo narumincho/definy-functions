@@ -7,6 +7,7 @@ import * as functions from "firebase-functions";
 import axios, { AxiosResponse } from "axios";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
+import * as sharp from "sharp";
 
 const app = admin.initializeApp();
 
@@ -523,21 +524,38 @@ const getAndSaveUserImage = async (
     responseType: "arraybuffer"
   });
   const mimeType: string = response.headers["content-type"];
-  return await saveFile(response.data, mimeType);
+  const originalImageBuffer = response.data;
+  const thumbnailImageBuffer = sharp(originalImageBuffer)
+    .resize(64, 64, { fit: "inside" })
+    .png()
+    .toBuffer();
+  const normalImageBuffer = sharp(originalImageBuffer)
+    .resize(512, 512, { fit: "inside" })
+    .png()
+    .toBuffer();
+  const hash = createHashFromBuffer(originalImageBuffer, mimeType);
+  savePngFile(thumbnailImageFileName(hash), await thumbnailImageBuffer);
+  savePngFile(hash, await normalImageBuffer);
+  return hash;
+};
+
+/**
+ * Firebase Cloud Storage にPNGファイルを保存する
+ */
+const savePngFile = async (fileName: string, buffer: Buffer): Promise<void> => {
+  saveFile(fileName, buffer, "image/png");
 };
 
 /**
  * Firebase Cloud Storage にファイルを保存する
- * @returns ハッシュ値
  */
 const saveFile = async (
+  fileName: string,
   buffer: Buffer,
   mimeType: string
-): Promise<common.data.FileHash> => {
-  const hash = createHashFromBuffer(buffer, mimeType);
-  const file = storageDefaultBucket.file(hash);
+): Promise<void> => {
+  const file = storageDefaultBucket.file(fileName);
   await file.save(buffer, { contentType: mimeType });
-  return hash;
 };
 
 export const createHashFromBuffer = (
@@ -651,3 +669,6 @@ export const getUserData = async (
 export const getReadableStream = (
   fileHash: common.data.FileHash
 ): stream.Readable => storageDefaultBucket.file(fileHash).createReadStream();
+
+const thumbnailImageFileName = (fileHash: common.data.FileHash): string =>
+  (fileHash as string) + "-t";
