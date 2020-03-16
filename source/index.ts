@@ -258,7 +258,7 @@ export const getFile = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }
-  response.set(
-    await lib.getFile(request.path.split("/")[1] as common.data.FileHash)
-  );
+  lib
+    .getReadableStream(request.path.split("/")[1] as common.data.FileHash)
+    .pipe(response);
 });

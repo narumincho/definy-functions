@@ -6,6 +6,7 @@ import * as crypto from "crypto";
 import * as functions from "firebase-functions";
 import axios, { AxiosResponse } from "axios";
 import * as jsonWebToken from "jsonwebtoken";
+import * as stream from "stream";
 
 const app = admin.initializeApp();
 
@@ -647,9 +648,6 @@ export const getUserData = async (
   });
 };
 
-export const getFile = async (
+export const getReadableStream = (
   fileHash: common.data.FileHash
-): Promise<Buffer> => {
-  const file = storageDefaultBucket.file(fileHash);
-  return (await file.download())[0];
-};
+): stream.Readable => storageDefaultBucket.file(fileHash).createReadStream();
