@@ -646,3 +646,10 @@ export const getUserData = async (
     likedProjectIdList: userData.likedProjectIdList
   });
 };
+
+export const getFile = async (
+  fileHash: common.data.FileHash
+): Promise<Buffer> => {
+  const file = storageDefaultBucket.file(fileHash);
+  return (await file.download())[0];
+};

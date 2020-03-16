@@ -253,3 +253,12 @@ export const logInCallback = functions.https.onRequest((request, response) => {
       response.send("invalid OpenIdConnectProvider name =" + request.path);
   }
 });
+
+export const getFile = functions.https.onRequest(async (request, response) => {
+  if (supportCrossOriginResourceSharing(request, response)) {
+    return;
+  }
+  response.set(
+    await lib.getFile(request.path.split("/")[1] as common.data.FileHash)
+  );
+});
