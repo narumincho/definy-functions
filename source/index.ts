@@ -142,7 +142,7 @@ export const api = functions.https.onRequest(async (request, response) => {
   }
   const result = await callApiFunction(
     request.path.split("/")[1],
-    new Uint8Array(request.body as Buffer)
+    request.body as Buffer
   );
   switch (result._) {
     case "Just":
@@ -183,6 +183,12 @@ const callApiFunction = async (
       return common.data.maybeJust(
         common.data.encodeMaybe(common.data.encodeUserPublic)(userData)
       );
+    }
+    case "getImageFile": {
+      const imageBinary = await lib.getFile(
+        common.data.decodeFileHashAndIsThumbnail(0, binary).result
+      );
+      return common.data.maybeJust(common.data.encodeBinary(imageBinary));
     }
   }
 

@@ -1,4 +1,5 @@
 import * as common from "definy-common";
+import { data } from "definy-common";
 import { URL } from "url";
 import * as admin from "firebase-admin";
 import * as typedFirestore from "typed-admin-firestore";
@@ -21,7 +22,7 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     subCollections: {};
   };
   user: {
-    key: common.data.UserId;
+    key: data.UserId;
     value: UserData;
     subCollections: {};
   };
@@ -29,8 +30,8 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
 
 type StateData = {
   createdAt: admin.firestore.Timestamp;
-  urlData: common.data.UrlData;
-  provider: common.data.OpenIdConnectProvider;
+  urlData: data.UrlData;
+  provider: data.OpenIdConnectProvider;
 };
 
 /**
@@ -50,7 +51,7 @@ type UserData = {
   /**
    * プロフィール画像
    */
-  readonly imageHash: common.data.FileHash;
+  readonly imageHash: data.FileHash;
   /**
    * 自己紹介文。改行文字を含めることができる。
    *
@@ -60,11 +61,11 @@ type UserData = {
   /** ユーザーが作成された日時 */
   readonly createdAt: admin.firestore.Timestamp;
   /** プロジェクトに対する いいね */
-  readonly likedProjectIdList: ReadonlyArray<common.data.ProjectId>;
+  readonly likedProjectIdList: ReadonlyArray<data.ProjectId>;
 
-  readonly developedProjectIdList: ReadonlyArray<common.data.ProjectId>;
+  readonly developedProjectIdList: ReadonlyArray<data.ProjectId>;
 
-  readonly commentedIdeaIdList: ReadonlyArray<common.data.IdeaId>;
+  readonly commentedIdeaIdList: ReadonlyArray<data.IdeaId>;
   /** アクセストークンのハッシュ値 */
   readonly accessTokenHashList: Array<AccessTokenHash>;
   /** アクセストークンを発行した日時 */
@@ -76,7 +77,7 @@ type UserData = {
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
   /** プロバイダー (例: LINE, Google, GitHub) */
-  readonly provider: common.data.OpenIdConnectProvider;
+  readonly provider: data.OpenIdConnectProvider;
   /** プロバイダー内でのアカウントID */
   readonly idInProvider: string;
 };
@@ -145,7 +146,7 @@ type ReleaseModuleMeta = {
   /** モジュール名 (階層を作ることができる) */
   name: ReadonlyArray<MultiLanguageText>;
   /** 属しているプロジェクト */
-  projectId: common.data.ProjectId;
+  projectId: data.ProjectId;
   /** 説明文 */
   description: string;
   /** 外部のプロジェクトに公開するかどうか */
@@ -166,7 +167,7 @@ type TypeExpr = {};
 type Expr = {};
 
 export const requestLogInUrl = async (
-  requestLogInUrlRequestData: common.data.RequestLogInUrlRequestData
+  requestLogInUrlRequestData: data.RequestLogInUrlRequestData
 ): Promise<URL> => {
   const state = createRandomId();
   await createStateDocument(
@@ -181,7 +182,7 @@ export const requestLogInUrl = async (
 };
 
 const createStateDocument = async (
-  requestLogInUrlRequestData: common.data.RequestLogInUrlRequestData,
+  requestLogInUrlRequestData: data.RequestLogInUrlRequestData,
   state: string,
   createdAt: admin.firestore.Timestamp
 ): Promise<void> => {
@@ -197,7 +198,7 @@ const createStateDocument = async (
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
-  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  openIdConnectProvider: data.OpenIdConnectProvider,
   state: string
 ): URL => {
   switch (openIdConnectProvider) {
@@ -227,33 +228,33 @@ const logInUrlFromOpenIdConnectProviderAndState = (
 };
 
 export const getUser = async (
-  userId: common.data.UserId
-): Promise<common.data.Result<common.data.UserPublic, string>> => {
-  const data = (
+  userId: data.UserId
+): Promise<data.Result<data.UserPublic, string>> => {
+  const userDocument = (
     await database
       .collection("user")
       .doc(userId)
       .get()
   ).data();
-  if (data === undefined) {
-    return common.data.resultError(
+  if (userDocument === undefined) {
+    return data.resultError(
       "ユーザーが見つからなかった id=" + (userId as string)
     );
   }
-  return common.data.resultOk({
-    name: data.name,
-    imageHash: data.imageHash,
-    introduction: data.introduction,
-    createdAt: firestoreTimestampToDateTime(data.createdAt),
-    likedProjectIdList: data.likedProjectIdList,
-    developedProjectIdList: data.developedProjectIdList,
+  return data.resultOk({
+    name: userDocument.name,
+    imageHash: userDocument.imageHash,
+    introduction: userDocument.introduction,
+    createdAt: firestoreTimestampToDateTime(userDocument.createdAt),
+    likedProjectIdList: userDocument.likedProjectIdList,
+    developedProjectIdList: userDocument.developedProjectIdList,
     commentedIdeaIdList: []
   });
 };
 
 const firestoreTimestampToDateTime = (
   timestamp: admin.firestore.Timestamp
-): common.data.DateTime => {
+): data.DateTime => {
   const date = timestamp.toDate();
   return {
     year: 10000 + date.getUTCFullYear(),
@@ -285,7 +286,7 @@ const createRandomId = (): string => {
 };
 
 const logInRedirectUri = (
-  openIdConnectProvider: common.data.OpenIdConnectProvider
+  openIdConnectProvider: data.OpenIdConnectProvider
 ): string =>
   "https://us-central1-definy-lang.cloudfunctions.net/logInCallback/" +
   (openIdConnectProvider as string);
@@ -297,10 +298,10 @@ const logInRedirectUri = (
  * @param state
  */
 export const logInCallback = async (
-  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  openIdConnectProvider: data.OpenIdConnectProvider,
   code: string,
   state: string
-): Promise<common.data.UrlData> => {
+): Promise<data.UrlData> => {
   const documentReference = database.collection("openConnectState").doc(state);
   const stateData = (await documentReference.get()).data();
   if (stateData === undefined || stateData.provider !== openIdConnectProvider) {
@@ -331,7 +332,7 @@ export const logInCallback = async (
     );
     return {
       ...stateData.urlData,
-      accessToken: common.data.maybeJust(accessToken)
+      accessToken: data.maybeJust(accessToken)
     };
   }
   const userQueryDocumentSnapshot = documentList[0];
@@ -347,7 +348,7 @@ export const logInCallback = async (
   });
   return {
     ...stateData.urlData,
-    accessToken: common.data.maybeJust(accessTokenData.accessToken)
+    accessToken: data.maybeJust(accessTokenData.accessToken)
   };
 };
 
@@ -358,7 +359,7 @@ type ProviderUserData = {
 };
 
 const getUserDataFromCode = async (
-  openIdConnectProvider: common.data.OpenIdConnectProvider,
+  openIdConnectProvider: data.OpenIdConnectProvider,
   code: string
 ): Promise<ProviderUserData> => {
   switch (openIdConnectProvider) {
@@ -491,14 +492,14 @@ viewer {
 
 const createUser = async (
   providerUserData: ProviderUserData,
-  provider: common.data.OpenIdConnectProvider
-): Promise<common.data.AccessToken> => {
+  provider: data.OpenIdConnectProvider
+): Promise<data.AccessToken> => {
   const imageHash = await getAndSaveUserImage(providerUserData.imageUrl);
   const createdAt = admin.firestore.Timestamp.now();
   const accessTokenData = issueAccessToken();
   await database
     .collection("user")
-    .doc(createRandomId() as common.data.UserId)
+    .doc(createRandomId() as data.UserId)
     .create({
       name: providerUserData.name,
       commentedIdeaIdList: [],
@@ -517,9 +518,7 @@ const createUser = async (
   return accessTokenData.accessToken;
 };
 
-const getAndSaveUserImage = async (
-  imageUrl: URL
-): Promise<common.data.FileHash> => {
+const getAndSaveUserImage = async (imageUrl: URL): Promise<data.FileHash> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer"
   });
@@ -561,18 +560,18 @@ const saveFile = async (
 export const createHashFromBuffer = (
   data: Buffer,
   mimeType: string
-): common.data.FileHash =>
+): data.FileHash =>
   crypto
     .createHash("sha256")
     .update(data)
     .update(mimeType, "utf8")
-    .digest("hex") as common.data.FileHash;
+    .digest("hex") as data.FileHash;
 
 /**
  * OpenIdConnectのclientSecretはfirebaseの環境変数に設定されている
  */
 const getOpenIdConnectClientSecret = (
-  openIdConnectProvider: common.data.OpenIdConnectProvider
+  openIdConnectProvider: data.OpenIdConnectProvider
 ): string => {
   return functions.config()["openidconnectclientsecret"][
     openIdConnectProvider.toLowerCase()
@@ -580,7 +579,7 @@ const getOpenIdConnectClientSecret = (
 };
 
 const getOpenIdConnectClientId = (
-  openIdConnectProvider: common.data.OpenIdConnectProvider
+  openIdConnectProvider: data.OpenIdConnectProvider
 ): string => {
   switch (openIdConnectProvider) {
     case "Google":
@@ -594,13 +593,13 @@ const getOpenIdConnectClientId = (
  * アクセストークンを生成する
  */
 const issueAccessToken = (): {
-  accessToken: common.data.AccessToken;
+  accessToken: data.AccessToken;
   accessTokenHash: AccessTokenHash;
   issuedAt: admin.firestore.Timestamp;
 } => {
   const accessToken = crypto
     .randomBytes(32)
-    .toString("hex") as common.data.AccessToken;
+    .toString("hex") as data.AccessToken;
   return {
     accessToken: accessToken,
     accessTokenHash: hashAccessToken(accessToken),
@@ -608,17 +607,15 @@ const issueAccessToken = (): {
   };
 };
 
-const hashAccessToken = (
-  accessToken: common.data.AccessToken
-): AccessTokenHash =>
+const hashAccessToken = (accessToken: data.AccessToken): AccessTokenHash =>
   crypto
     .createHash("sha256")
-    .update(new Uint8Array(common.data.encodeToken(accessToken)))
+    .update(new Uint8Array(data.encodeToken(accessToken)))
     .digest("hex") as AccessTokenHash;
 
 export const getUserByAccessToken = async (
-  accessToken: common.data.AccessToken
-): Promise<common.data.Maybe<common.data.UserPublicAndUserId>> => {
+  accessToken: data.AccessToken
+): Promise<data.Maybe<data.UserPublicAndUserId>> => {
   const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
   const userDataDocs = (
     await database
@@ -627,13 +624,13 @@ export const getUserByAccessToken = async (
       .get()
   ).docs;
   if (userDataDocs.length !== 1) {
-    return common.data.maybeNothing();
+    return data.maybeNothing();
   }
   const queryDocumentSnapshot = userDataDocs[0];
   const userData = queryDocumentSnapshot.data();
 
-  return common.data.maybeJust({
-    userId: queryDocumentSnapshot.id as common.data.UserId,
+  return data.maybeJust({
+    userId: queryDocumentSnapshot.id as data.UserId,
     userPublic: {
       name: userData.name,
       imageHash: userData.imageHash,
@@ -647,15 +644,15 @@ export const getUserByAccessToken = async (
 };
 
 export const getUserData = async (
-  userId: common.data.UserId
-): Promise<common.data.Maybe<common.data.UserPublic>> => {
+  userId: data.UserId
+): Promise<data.Maybe<data.UserPublic>> => {
   const userData = (
     await (await database.collection("user").doc(userId)).get()
   ).data();
   if (userData === undefined) {
-    return common.data.maybeNothing();
+    return data.maybeNothing();
   }
-  return common.data.maybeJust({
+  return data.maybeJust({
     name: userData.name,
     imageHash: userData.imageHash,
     introduction: userData.introduction,
@@ -666,9 +663,20 @@ export const getUserData = async (
   });
 };
 
-export const getReadableStream = (
-  fileHash: common.data.FileHash
-): stream.Readable => storageDefaultBucket.file(fileHash).createReadStream();
+export const getReadableStream = (fileHash: data.FileHash): stream.Readable =>
+  storageDefaultBucket.file(fileHash).createReadStream();
 
-const thumbnailImageFileName = (fileHash: common.data.FileHash): string =>
+export const getFile = async (
+  fileHashAndIsThumbnail: data.FileHashAndIsThumbnail
+): Promise<Uint8Array> => {
+  const file = storageDefaultBucket.file(
+    fileHashAndIsThumbnail.isThumbnail
+      ? thumbnailImageFileName(fileHashAndIsThumbnail.fileHash)
+      : fileHashAndIsThumbnail.fileHash
+  );
+  const downloadResponse = (await file.download())[0];
+  return downloadResponse;
+};
+
+const thumbnailImageFileName = (fileHash: data.FileHash): string =>
   (fileHash as string) + "-t";
