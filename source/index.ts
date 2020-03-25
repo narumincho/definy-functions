@@ -186,7 +186,7 @@ const callApiFunction = async (
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
-        common.data.decodeFileHashAndIsThumbnail(0, binary).result
+        common.data.decodeToken(0, binary).result as common.data.FileHash
       );
       return common.data.maybeJust(common.data.encodeBinary(imageBinary));
     }
