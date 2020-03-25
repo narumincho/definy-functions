@@ -522,39 +522,30 @@ const getAndSaveUserImage = async (imageUrl: URL): Promise<data.FileHash> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer"
   });
-  const mimeType: string = response.headers["content-type"];
-  const originalImageBuffer = response.data;
-  const thumbnailImageBuffer = sharp(originalImageBuffer)
+  const resizedImageBuffer = await sharp(response.data)
     .resize(64, 64, { fit: "inside" })
     .png()
     .toBuffer();
-  const normalImageBuffer = sharp(originalImageBuffer)
-    .resize(512, 512, { fit: "inside" })
-    .png()
-    .toBuffer();
-  const hash = createHashFromBuffer(originalImageBuffer, mimeType);
-  savePngFile(thumbnailImageFileName(hash), await thumbnailImageBuffer);
-  savePngFile(hash, await normalImageBuffer);
-  return hash;
+  return await savePngFile(resizedImageBuffer);
 };
 
 /**
  * Firebase Cloud Storage にPNGファイルを保存する
  */
-const savePngFile = async (fileName: string, buffer: Buffer): Promise<void> => {
-  saveFile(fileName, buffer, "image/png");
-};
+const savePngFile = async (buffer: Buffer): Promise<data.FileHash> =>
+  saveFile(buffer, "image/png");
 
 /**
  * Firebase Cloud Storage にファイルを保存する
  */
 const saveFile = async (
-  fileName: string,
   buffer: Buffer,
   mimeType: string
-): Promise<void> => {
-  const file = storageDefaultBucket.file(fileName);
+): Promise<data.FileHash> => {
+  const hash = createHashFromBuffer(buffer, mimeType);
+  const file = storageDefaultBucket.file(hash);
   await file.save(buffer, { contentType: mimeType });
+  return hash;
 };
 
 export const createHashFromBuffer = (
@@ -666,17 +657,8 @@ export const getUserData = async (
 export const getReadableStream = (fileHash: data.FileHash): stream.Readable =>
   storageDefaultBucket.file(fileHash).createReadStream();
 
-export const getFile = async (
-  fileHashAndIsThumbnail: data.FileHashAndIsThumbnail
-): Promise<Uint8Array> => {
-  const file = storageDefaultBucket.file(
-    fileHashAndIsThumbnail.isThumbnail
-      ? thumbnailImageFileName(fileHashAndIsThumbnail.fileHash)
-      : fileHashAndIsThumbnail.fileHash
-  );
+export const getFile = async (fileHash: data.FileHash): Promise<Uint8Array> => {
+  const file = storageDefaultBucket.file(fileHash);
   const downloadResponse = (await file.download())[0];
   return downloadResponse;
 };
-
-const thumbnailImageFileName = (fileHash: data.FileHash): string =>
-  (fileHash as string) + "-t";
