@@ -9,6 +9,7 @@ import axios, { AxiosResponse } from "axios";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import * as sharp from "sharp";
+import * as image from "./image";
 
 const app = admin.initializeApp();
 
@@ -24,6 +25,11 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
   user: {
     key: data.UserId;
     value: UserData;
+    subCollections: {};
+  };
+  project: {
+    key: data.ProjectId;
+    value: ProjectData;
     subCollections: {};
   };
 }>;
@@ -74,6 +80,13 @@ type UserData = {
   readonly openIdConnect: OpenIdConnectProviderAndId;
 };
 
+type ProjectData = {
+  readonly name: string;
+  readonly icon: data.FileHash;
+  readonly image: data.FileHash;
+  readonly createdAt: admin.firestore.Timestamp;
+  readonly createdBy: data.UserId;
+};
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
   /** プロバイダー (例: LINE, Google, GitHub) */
@@ -652,6 +665,48 @@ export const getUserData = async (
     developedProjectIdList: userData.developedProjectIdList,
     likedProjectIdList: userData.likedProjectIdList
   });
+};
+
+export const createProject = async (
+  accessToken: data.AccessToken,
+  projectName: string
+): Promise<data.Maybe<data.Project>> => {
+  const userDataMaybe = await getUserByAccessToken(accessToken);
+  switch (userDataMaybe._) {
+    case "Just": {
+      const userData = userDataMaybe.value;
+      const normalizedProjectName = common.userNameDecoder(projectName) ?? "?";
+      const projectId = createRandomId() as data.ProjectId;
+      const iconHash = savePngFile(
+        image.createProjectIconFromChar(normalizedProjectName[0])
+      );
+      const imageHash = savePngFile(
+        image.createProjectImage(normalizedProjectName)
+      );
+      const project: ProjectData = {
+        name: normalizedProjectName,
+        icon: await iconHash,
+        image: await imageHash,
+        createdBy: userData.userId,
+        createdAt: admin.firestore.Timestamp.now()
+      };
+
+      database
+        .collection("project")
+        .doc(projectId)
+        .create(project);
+      return data.maybeJust({
+        name: project.name,
+        icon: project.icon,
+        image: project.image,
+        createdBy: project.createdBy,
+        createdAt: firestoreTimestampToDateTime(project.createdAt)
+      });
+    }
+    case "Nothing": {
+      return data.maybeNothing();
+    }
+  }
 };
 
 export const getReadableStream = (fileHash: data.FileHash): stream.Readable =>

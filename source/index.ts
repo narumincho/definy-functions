@@ -190,6 +190,19 @@ const callApiFunction = async (
       );
       return common.data.maybeJust(common.data.encodeBinary(imageBinary));
     }
+    case "createProject": {
+      const createProjectParameter = await common.data.decodeCreateProjectParameter(
+        0,
+        binary
+      ).result;
+      const newProject = await lib.createProject(
+        createProjectParameter.accessToken,
+        createProjectParameter.projectName
+      );
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeProject)(newProject)
+      );
+    }
   }
 
   return common.data.maybeNothing();
