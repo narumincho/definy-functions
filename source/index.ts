@@ -106,6 +106,8 @@ const englishDescription = (location: common.data.Location): string => {
       return "Definy Project page id=" + (location.projectId as string);
     case "User":
       return "Definy User page id=" + (location.userId as string);
+    case "CreateProject":
+      return "Project creation page";
   }
 };
 
@@ -117,6 +119,8 @@ const japaneseDescription = (location: common.data.Location): string => {
       return "プロジェクト id=" + (location.projectId as string);
     case "User":
       return "ユーザー id=" + (location.userId as string);
+    case "CreateProject":
+      return "プロジェクト作成ページ";
   }
 };
 
@@ -128,6 +132,8 @@ const esperantoDescription = (location: common.data.Location): string => {
       return "projektopaĝo id=" + (location.projectId as string);
     case "User":
       return "uzantopaĝo id=" + (location.userId as string);
+    case "CreateProject":
+      return "Projekto kreo de paĝo";
   }
 };
 
