@@ -175,7 +175,7 @@ const callApiFunction = async (
     }
     case "getUserByAccessToken": {
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUserPublicAndUserId)(
+        common.data.encodeMaybe(common.data.encodeUserAndUserId)(
           await lib.getUserByAccessToken(
             common.data.decodeToken(0, binary).result as common.data.AccessToken
           )
@@ -187,7 +187,7 @@ const callApiFunction = async (
         common.data.decodeId(0, binary).result as common.data.UserId
       );
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUserPublic)(userData)
+        common.data.encodeMaybe(common.data.encodeUser)(userData)
       );
     }
     case "getImageFile": {

@@ -242,7 +242,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
 
 export const getUser = async (
   userId: data.UserId
-): Promise<data.Result<data.UserPublic, string>> => {
+): Promise<data.Result<data.User, string>> => {
   const userDocument = (
     await database
       .collection("user")
@@ -619,7 +619,7 @@ const hashAccessToken = (accessToken: data.AccessToken): AccessTokenHash =>
 
 export const getUserByAccessToken = async (
   accessToken: data.AccessToken
-): Promise<data.Maybe<data.UserPublicAndUserId>> => {
+): Promise<data.Maybe<data.UserAndUserId>> => {
   const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
   const userDataDocs = (
     await database
@@ -635,7 +635,7 @@ export const getUserByAccessToken = async (
 
   return data.maybeJust({
     userId: queryDocumentSnapshot.id as data.UserId,
-    userPublic: {
+    user: {
       name: userData.name,
       imageHash: userData.imageHash,
       introduction: userData.introduction,
@@ -649,7 +649,7 @@ export const getUserByAccessToken = async (
 
 export const getUserData = async (
   userId: data.UserId
-): Promise<data.Maybe<data.UserPublic>> => {
+): Promise<data.Maybe<data.User>> => {
   const userData = (
     await (await database.collection("user").doc(userId)).get()
   ).data();
