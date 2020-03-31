@@ -670,7 +670,7 @@ export const getUserData = async (
 export const createProject = async (
   accessToken: data.AccessToken,
   projectName: string
-): Promise<data.Maybe<data.Project>> => {
+): Promise<data.Maybe<data.ProjectAndProjectId>> => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   switch (userDataMaybe._) {
     case "Just": {
@@ -700,11 +700,14 @@ export const createProject = async (
         .doc(projectId)
         .create(project);
       return data.maybeJust({
-        name: project.name,
-        icon: project.icon,
-        image: project.image,
-        createdBy: project.createdBy,
-        createdAt: firestoreTimestampToDateTime(project.createdAt)
+        projectId: projectId,
+        project: {
+          name: project.name,
+          icon: project.icon,
+          image: project.image,
+          createdBy: project.createdBy,
+          createdAt: firestoreTimestampToDateTime(project.createdAt)
+        }
       });
     }
     case "Nothing": {

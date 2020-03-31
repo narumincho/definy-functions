@@ -206,7 +206,9 @@ const callApiFunction = async (
         createProjectParameter.projectName
       );
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProject)(newProject)
+        common.data.encodeMaybe(common.data.encodeProjectAndProjectId)(
+          newProject
+        )
       );
     }
   }
