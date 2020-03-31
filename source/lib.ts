@@ -675,16 +675,20 @@ export const createProject = async (
   switch (userDataMaybe._) {
     case "Just": {
       const userData = userDataMaybe.value;
-      const normalizedProjectName = common.userNameDecoder(projectName) ?? "?";
+      const normalizedProjectName = common.stringToValidProjectName(
+        projectName
+      );
+      const projectNameWithDefault =
+        normalizedProjectName === null ? "?" : normalizedProjectName;
       const projectId = createRandomId() as data.ProjectId;
       const iconHash = savePngFile(
-        image.createProjectIconFromChar(normalizedProjectName[0])
+        image.createProjectIconFromChar(projectNameWithDefault[0])
       );
       const imageHash = savePngFile(
-        image.createProjectImage(normalizedProjectName)
+        image.createProjectImage(projectNameWithDefault)
       );
       const project: ProjectData = {
-        name: normalizedProjectName,
+        name: projectNameWithDefault,
         icon: await iconHash,
         image: await imageHash,
         createdBy: userData.userId,
