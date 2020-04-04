@@ -68,7 +68,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       box-sizing: border-box;
       color: white;
   }`,
-      body: [html.div({}, loadingMessage(urlData.language))]
+      body: [html.div({}, loadingMessage(urlData.language))],
     })
   );
 });
@@ -262,7 +262,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
           clientMode: common.data.clientModeRelease,
           location: common.data.locationHome,
           language: "English",
-          accessToken: common.data.maybeNothing()
+          accessToken: common.data.maybeNothing(),
         })
         .toString()
     );
@@ -271,7 +271,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
   switch (openIdConnectProvider) {
     case "Google":
     case "GitHub": {
-      lib.logInCallback(openIdConnectProvider, code, state).then(result => {
+      lib.logInCallback(openIdConnectProvider, code, state).then((result) => {
         response.redirect(301, common.urlDataToUrl(result).toString());
       });
       return;

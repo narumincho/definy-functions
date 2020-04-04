@@ -202,12 +202,9 @@ const createStateDocument = async (
   const stateData: StateData = {
     createdAt: createdAt,
     urlData: requestLogInUrlRequestData.urlData,
-    provider: requestLogInUrlRequestData.openIdConnectProvider
+    provider: requestLogInUrlRequestData.openIdConnectProvider,
   };
-  await database
-    .collection("openConnectState")
-    .doc(state)
-    .create(stateData);
+  await database.collection("openConnectState").doc(state).create(stateData);
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
@@ -223,7 +220,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
           ["client_id", getOpenIdConnectClientId("Google")],
           ["redirect_uri", logInRedirectUri("Google")],
           ["scope", "profile openid"],
-          ["state", state]
+          ["state", state],
         ])
       );
     case "GitHub":
@@ -234,7 +231,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
           ["client_id", getOpenIdConnectClientId("GitHub")],
           ["redirect_uri", logInRedirectUri("GitHub")],
           ["scope", "read:user"],
-          ["state", state]
+          ["state", state],
         ])
       );
   }
@@ -244,10 +241,7 @@ export const getUser = async (
   userId: data.UserId
 ): Promise<data.Result<data.User, string>> => {
   const userDocument = (
-    await database
-      .collection("user")
-      .doc(userId)
-      .get()
+    await database.collection("user").doc(userId).get()
   ).data();
   if (userDocument === undefined) {
     return data.resultError(
@@ -261,7 +255,7 @@ export const getUser = async (
     createdAt: firestoreTimestampToDateTime(userDocument.createdAt),
     likedProjectIdList: userDocument.likedProjectIdList,
     developedProjectIdList: userDocument.developedProjectIdList,
-    commentedIdeaIdList: []
+    commentedIdeaIdList: [],
   });
 };
 
@@ -275,7 +269,7 @@ const firestoreTimestampToDateTime = (
     day: date.getUTCDate(),
     hour: date.getUTCHours(),
     minute: date.getUTCMinutes(),
-    second: date.getUTCSeconds()
+    second: date.getUTCSeconds(),
   };
 };
 
@@ -330,7 +324,7 @@ export const logInCallback = async (
   );
   const openIdConnectProviderAndIdQuery: OpenIdConnectProviderAndId = {
     idInProvider: providerUserData.id,
-    provider: openIdConnectProvider
+    provider: openIdConnectProvider,
   };
   const documentList = (
     await database
@@ -345,7 +339,7 @@ export const logInCallback = async (
     );
     return {
       ...stateData.urlData,
-      accessToken: data.maybeJust(accessToken)
+      accessToken: data.maybeJust(accessToken),
     };
   }
   const userQueryDocumentSnapshot = documentList[0];
@@ -357,11 +351,11 @@ export const logInCallback = async (
     ),
     accessTokenIssuedAtList: admin.firestore.FieldValue.arrayUnion(
       accessTokenData.issuedAt
-    )
+    ),
   });
   return {
     ...stateData.urlData,
-    accessToken: data.maybeJust(accessTokenData.accessToken)
+    accessToken: data.maybeJust(accessTokenData.accessToken),
   };
 };
 
@@ -393,12 +387,12 @@ const getGoogleUserDataFromCode = async (
       ["code", code],
       ["redirect_uri", logInRedirectUri("Google")],
       ["client_id", getOpenIdConnectClientId("Google")],
-      ["client_secret", getOpenIdConnectClientSecret("Google")]
+      ["client_secret", getOpenIdConnectClientSecret("Google")],
     ]),
     {
       headers: {
-        "content-type": "application/x-www-form-urlencoded"
-      }
+        "content-type": "application/x-www-form-urlencoded",
+      },
     }
   );
   const idToken: string = response.data.id_token;
@@ -427,7 +421,7 @@ const getGoogleUserDataFromCode = async (
   return {
     id: markedDecoded.sub,
     name: markedDecoded.name,
-    imageUrl: new URL(markedDecoded.picture)
+    imageUrl: new URL(markedDecoded.picture),
   };
 };
 
@@ -442,13 +436,13 @@ const getGitHubUserDataFromCode = async (
         ["code", code],
         ["redirect_uri", logInRedirectUri("GitHub")],
         ["client_id", getOpenIdConnectClientId("GitHub")],
-        ["client_secret", getOpenIdConnectClientSecret("GitHub")]
+        ["client_secret", getOpenIdConnectClientSecret("GitHub")],
       ]),
       {
         headers: {
           accept: "application/json",
-          "content-type": "application/x-www-form-urlencoded"
-        }
+          "content-type": "application/x-www-form-urlencoded",
+        },
       }
     )
   ).data;
@@ -470,12 +464,12 @@ viewer {
     avatarUrl
 }
 }
-`
+`,
       },
       {
         headers: {
-          Authorization: "token " + accessToken
-        }
+          Authorization: "token " + accessToken,
+        },
       }
     )
   ).data.data.viewer;
@@ -499,7 +493,7 @@ viewer {
   return {
     id: id,
     name: name,
-    imageUrl: new URL(avatarUrl)
+    imageUrl: new URL(avatarUrl),
   };
 };
 
@@ -525,15 +519,15 @@ const createUser = async (
       likedProjectIdList: [],
       openIdConnect: {
         idInProvider: providerUserData.id,
-        provider: provider
-      }
+        provider: provider,
+      },
     });
   return accessTokenData.accessToken;
 };
 
 const getAndSaveUserImage = async (imageUrl: URL): Promise<data.FileHash> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
-    responseType: "arraybuffer"
+    responseType: "arraybuffer",
   });
   const resizedImageBuffer = await sharp(response.data)
     .resize(64, 64, { fit: "inside" })
@@ -607,7 +601,7 @@ const issueAccessToken = (): {
   return {
     accessToken: accessToken,
     accessTokenHash: hashAccessToken(accessToken),
-    issuedAt: admin.firestore.Timestamp.now()
+    issuedAt: admin.firestore.Timestamp.now(),
   };
 };
 
@@ -642,8 +636,8 @@ export const getUserByAccessToken = async (
       commentedIdeaIdList: userData.commentedIdeaIdList,
       createdAt: firestoreTimestampToDateTime(userData.createdAt),
       developedProjectIdList: userData.developedProjectIdList,
-      likedProjectIdList: userData.likedProjectIdList
-    }
+      likedProjectIdList: userData.likedProjectIdList,
+    },
   });
 };
 
@@ -663,7 +657,7 @@ export const getUserData = async (
     commentedIdeaIdList: userData.commentedIdeaIdList,
     createdAt: firestoreTimestampToDateTime(userData.createdAt),
     developedProjectIdList: userData.developedProjectIdList,
-    likedProjectIdList: userData.likedProjectIdList
+    likedProjectIdList: userData.likedProjectIdList,
   });
 };
 
@@ -692,13 +686,10 @@ export const createProject = async (
         icon: await iconHash,
         image: await imageHash,
         createdBy: userData.userId,
-        createdAt: admin.firestore.Timestamp.now()
+        createdAt: admin.firestore.Timestamp.now(),
       };
 
-      database
-        .collection("project")
-        .doc(projectId)
-        .create(project);
+      database.collection("project").doc(projectId).create(project);
       return data.maybeJust({
         projectId: projectId,
         project: {
@@ -706,8 +697,8 @@ export const createProject = async (
           icon: project.icon,
           image: project.image,
           createdBy: project.createdBy,
-          createdAt: firestoreTimestampToDateTime(project.createdAt)
-        }
+          createdAt: firestoreTimestampToDateTime(project.createdAt),
+        },
       });
     }
     case "Nothing": {
