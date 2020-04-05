@@ -261,17 +261,7 @@ export const getUser = async (
 
 const firestoreTimestampToDateTime = (
   timestamp: admin.firestore.Timestamp
-): data.DateTime => {
-  const date = timestamp.toDate();
-  return {
-    year: 10000 + date.getUTCFullYear(),
-    month: 1 + date.getUTCMonth(),
-    day: date.getUTCDate(),
-    hour: date.getUTCHours(),
-    minute: date.getUTCMinutes(),
-    second: date.getUTCSeconds(),
-  };
-};
+): data.DateTime => common.util.dateTimeFromDate(timestamp.toDate());
 
 const createUrl = (
   originAndPath: string,
