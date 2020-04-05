@@ -214,7 +214,7 @@ const callApiFunction = async (
     case "getAllProjectId": {
       const projectIdList = await lib.getAllProjectId();
       return common.data.maybeJust(
-        common.data.encodeList(common.data.encodeToken)(projectIdList)
+        common.data.encodeList(common.data.encodeId)(projectIdList)
       );
     }
     case "getProject": {
