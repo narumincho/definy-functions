@@ -211,6 +211,20 @@ const callApiFunction = async (
         )
       );
     }
+    case "getAllProjectId": {
+      const projectIdList = await lib.getAllProjectId();
+      return common.data.maybeJust(
+        common.data.encodeList(common.data.encodeToken)(projectIdList)
+      );
+    }
+    case "getProject": {
+      const projectId = common.data.decodeId(0, binary)
+        .result as common.data.ProjectId;
+      const project = await lib.getProject(projectId);
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeProject)(project)
+      );
+    }
   }
 
   return common.data.maybeNothing();

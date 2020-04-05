@@ -715,3 +715,32 @@ export const getFile = async (fileHash: data.FileHash): Promise<Uint8Array> => {
   const downloadResponse = (await file.download())[0];
   return downloadResponse;
 };
+
+export const getAllProjectId = async (): Promise<
+  ReadonlyArray<data.ProjectId>
+> => {
+  const documentList = await database.collection("project").listDocuments();
+  const list = [];
+  for (const document of documentList) {
+    list.push(document.id);
+  }
+  return list;
+};
+
+export const getProject = async (
+  projectId: data.ProjectId
+): Promise<data.Maybe<data.Project>> => {
+  const document = (
+    await database.collection("project").doc(projectId).get()
+  ).data();
+  if (document === undefined) {
+    return data.maybeNothing();
+  }
+  return data.maybeJust<data.Project>({
+    name: document.name,
+    icon: document.icon,
+    image: document.image,
+    createdAt: firestoreTimestampToDateTime(document.createdAt),
+    createdBy: document.createdBy,
+  });
+};
