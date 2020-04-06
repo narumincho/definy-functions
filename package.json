@@ -17,7 +17,7 @@
     "@types/sharp": "^0.24.0",
     "axios": "^0.19.2",
     "canvas": "^2.6.1",
-    "definy-common": "^0.1.31",
+    "definy-common": "^0.1.33",
     "firebase-admin": "^8.10.0",
     "firebase-functions": "^3.6.0",
     "jsonwebtoken": "^8.5.1",
@@ -31,8 +31,8 @@
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "prettier": "^2.0.2",
-    "typed-admin-firestore": "1.0.4",
+    "prettier": "^2.0.3",
+    "typed-admin-firestore": "^1.0.4",
     "typescript": "^3.8.3"
   }
 }

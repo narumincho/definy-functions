@@ -252,16 +252,16 @@ export const getUser = async (
     name: userDocument.name,
     imageHash: userDocument.imageHash,
     introduction: userDocument.introduction,
-    createdAt: firestoreTimestampToDateTime(userDocument.createdAt),
+    createdAt: firestoreTimestampToTime(userDocument.createdAt),
     likedProjectIdList: userDocument.likedProjectIdList,
     developedProjectIdList: userDocument.developedProjectIdList,
     commentedIdeaIdList: [],
   });
 };
 
-const firestoreTimestampToDateTime = (
+const firestoreTimestampToTime = (
   timestamp: admin.firestore.Timestamp
-): data.DateTime => common.util.dateTimeFromDate(timestamp.toDate());
+): data.Time => common.util.timeFromDate(timestamp.toDate());
 
 const createUrl = (
   originAndPath: string,
@@ -624,7 +624,7 @@ export const getUserByAccessToken = async (
       imageHash: userData.imageHash,
       introduction: userData.introduction,
       commentedIdeaIdList: userData.commentedIdeaIdList,
-      createdAt: firestoreTimestampToDateTime(userData.createdAt),
+      createdAt: firestoreTimestampToTime(userData.createdAt),
       developedProjectIdList: userData.developedProjectIdList,
       likedProjectIdList: userData.likedProjectIdList,
     },
@@ -645,7 +645,7 @@ export const getUserData = async (
     imageHash: userData.imageHash,
     introduction: userData.introduction,
     commentedIdeaIdList: userData.commentedIdeaIdList,
-    createdAt: firestoreTimestampToDateTime(userData.createdAt),
+    createdAt: firestoreTimestampToTime(userData.createdAt),
     developedProjectIdList: userData.developedProjectIdList,
     likedProjectIdList: userData.likedProjectIdList,
   });
@@ -687,7 +687,7 @@ export const createProject = async (
           icon: project.icon,
           image: project.image,
           createdBy: project.createdBy,
-          createdAt: firestoreTimestampToDateTime(project.createdAt),
+          createdAt: firestoreTimestampToTime(project.createdAt),
         },
       });
     }
@@ -730,7 +730,7 @@ export const getProject = async (
     name: document.name,
     icon: document.icon,
     image: document.image,
-    createdAt: firestoreTimestampToDateTime(document.createdAt),
+    createdAt: firestoreTimestampToTime(document.createdAt),
     createdBy: document.createdBy,
   });
 };
