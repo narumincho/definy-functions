@@ -16,23 +16,25 @@ const app = admin.initializeApp();
 type AccessTokenHash = string & { _accessTokenHash: never };
 
 const storageDefaultBucket = app.storage().bucket();
-const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
-  openConnectState: {
-    key: string;
-    value: StateData;
-    subCollections: {};
-  };
-  user: {
-    key: data.UserId;
-    value: UserData;
-    subCollections: {};
-  };
-  project: {
-    key: data.ProjectId;
-    value: ProjectData;
-    subCollections: {};
-  };
-}>;
+const database =
+  (app.firestore() as unknown) as
+  typedFirestore.Firestore<{
+    openConnectState: {
+      key: string;
+      value: StateData;
+      subCollections: {};
+    };
+    user: {
+      key: data.UserId;
+      value: UserData;
+      subCollections: {};
+    };
+    project: {
+      key: data.ProjectId;
+      value: ProjectData;
+      subCollections: {};
+    };
+  }>;
 
 type StateData = {
   createdAt: admin.firestore.Timestamp;
@@ -390,12 +392,14 @@ const getGoogleUserDataFromCode = async (
   if (typeof decoded === "string" || decoded === null) {
     throw new Error("Google idToken not include object");
   }
-  const markedDecoded = decoded as {
-    iss: unknown;
-    sub: unknown;
-    name: unknown;
-    picture: unknown;
-  };
+  const markedDecoded =
+    decoded as
+    {
+      iss: unknown;
+      sub: unknown;
+      name: unknown;
+      picture: unknown;
+    };
   if (
     markedDecoded.iss !== "https://accounts.google.com" ||
     typeof markedDecoded.name !== "string" ||
@@ -585,9 +589,8 @@ const issueAccessToken = (): {
   accessTokenHash: AccessTokenHash;
   issuedAt: admin.firestore.Timestamp;
 } => {
-  const accessToken = crypto
-    .randomBytes(32)
-    .toString("hex") as data.AccessToken;
+  const accessToken =
+    crypto.randomBytes(32).toString("hex") as data.AccessToken;
   return {
     accessToken: accessToken,
     accessTokenHash: hashAccessToken(accessToken),
