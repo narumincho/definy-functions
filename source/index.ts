@@ -102,12 +102,16 @@ const englishDescription = (location: common.data.Location): string => {
   switch (location._) {
     case "Home":
       return "Definy is Web App for Web App.";
+    case "CreateProject":
+      return "Project creation page";
+    case "CreateIdea":
+      return "Idea creation page projectId=" + (location.projectId as string);
     case "Project":
       return "Definy Project page id=" + (location.projectId as string);
     case "User":
       return "Definy User page id=" + (location.userId as string);
-    case "CreateProject":
-      return "Project creation page";
+    case "Idea":
+      return "Definy Idea page id=" + (location.ideaId as string);
   }
 };
 
@@ -115,12 +119,16 @@ const japaneseDescription = (location: common.data.Location): string => {
   switch (location._) {
     case "Home":
       return "ブラウザで動作する革新的なプログラミング言語!";
+    case "CreateProject":
+      return "プロジェクト作成ページ";
+    case "CreateIdea":
+      return "アイデアの作成ページ";
     case "Project":
       return "プロジェクト id=" + (location.projectId as string);
     case "User":
       return "ユーザー id=" + (location.userId as string);
-    case "CreateProject":
-      return "プロジェクト作成ページ";
+    case "Idea":
+      return "アイデア id=" + (location.ideaId as string);
   }
 };
 
@@ -128,12 +136,16 @@ const esperantoDescription = (location: common.data.Location): string => {
   switch (location._) {
     case "Home":
       return "Noviga programlingvo, kiu funkcias en la retumilo";
+    case "CreateProject":
+      return "Projekto kreo de paĝo";
+    case "CreateIdea":
+      return "Ideo kreo de paĝo";
     case "Project":
       return "projektopaĝo id=" + (location.projectId as string);
     case "User":
       return "uzantopaĝo id=" + (location.userId as string);
-    case "CreateProject":
-      return "Projekto kreo de paĝo";
+    case "Idea":
+      return "Ideopaĝo id=" + (location.ideaId as string);
   }
 };
 
@@ -175,7 +187,7 @@ const callApiFunction = async (
     }
     case "getUserByAccessToken": {
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUserAndUserId)(
+        common.data.encodeMaybe(common.data.encodeUserSnapshotAndId)(
           await lib.getUserByAccessToken(
             common.data.decodeToken(0, binary).result as common.data.AccessToken
           )
@@ -183,11 +195,11 @@ const callApiFunction = async (
       );
     }
     case "getUser": {
-      const userData = await lib.getUserData(
+      const userData = await lib.getUserSnapshot(
         common.data.decodeId(0, binary).result as common.data.UserId
       );
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUser)(userData)
+        common.data.encodeMaybe(common.data.encodeUserSnapshot)(userData)
       );
     }
     case "getImageFile": {
@@ -206,7 +218,7 @@ const callApiFunction = async (
         createProjectParameter.projectName
       );
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProjectAndProjectId)(
+        common.data.encodeMaybe(common.data.encodeProjectSnapshotAndId)(
           newProject
         )
       );
@@ -220,9 +232,9 @@ const callApiFunction = async (
     case "getProject": {
       const projectId = common.data.decodeId(0, binary)
         .result as common.data.ProjectId;
-      const project = await lib.getProject(projectId);
+      const project = await lib.getProjectSnapshot(projectId);
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProject)(project)
+        common.data.encodeMaybe(common.data.encodeProjectSnapshot)(project)
       );
     }
   }
