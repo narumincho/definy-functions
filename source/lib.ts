@@ -604,13 +604,18 @@ export const getUserByAccessToken = async (
       introduction: userData.introduction,
       commentIdeaIdList: userData.commentedIdeaIdList,
       createTime: firestoreTimestampToTime(userData.createdAt),
-      developeProjectIdList: userData.developedProjectIdList,
+      developProjectIdList: userData.developedProjectIdList,
       likeProjectIdList: userData.likedProjectIdList,
       getTime: common.util.timeFromDate(new Date()),
     },
   });
 };
 
+/**
+ * ユーザーのスナップショットを取得する.
+ * Nothingだった場合は指定したIDのユーザーがなかったということ
+ * @param userId ユーザーID
+ */
 export const getUserSnapshot = async (
   userId: data.UserId
 ): Promise<data.Maybe<data.UserSnapshot>> => {
@@ -624,7 +629,7 @@ export const getUserSnapshot = async (
     introduction: userData.introduction,
     commentIdeaIdList: userData.commentedIdeaIdList,
     createTime: firestoreTimestampToTime(userData.createdAt),
-    developeProjectIdList: userData.developedProjectIdList,
+    developProjectIdList: userData.developedProjectIdList,
     likeProjectIdList: userData.likedProjectIdList,
     getTime: common.util.timeFromDate(new Date()),
   });
@@ -666,8 +671,8 @@ export const createProject = async (
         id: projectId,
         snapshot: {
           name: project.name,
-          icon: project.iconHash,
-          image: project.imageHash,
+          iconHash: project.iconHash,
+          imageHash: project.imageHash,
           createUser: project.createUserId,
           createTime: createTimeAsTime,
           updateTime: createTimeAsTime,
@@ -701,6 +706,11 @@ export const getAllProjectId = async (): Promise<
   return list;
 };
 
+/**
+ * プロジェクトのスナップショットを取得する.
+ * Nothingだった場合は指定したIDのプロジェクトがなかったということ
+ * @param projectId プロジェクトID
+ */
 export const getProjectSnapshot = async (
   projectId: data.ProjectId
 ): Promise<data.Maybe<data.ProjectSnapshot>> => {
@@ -712,8 +722,8 @@ export const getProjectSnapshot = async (
   }
   return data.maybeJust<data.ProjectSnapshot>({
     name: document.name,
-    icon: document.iconHash,
-    image: document.imageHash,
+    iconHash: document.iconHash,
+    imageHash: document.imageHash,
     createTime: firestoreTimestampToTime(document.createTime),
     createUser: document.createUserId,
     getTime: common.util.timeFromDate(new Date()),
