@@ -195,7 +195,7 @@ const callApiFunction = async (
       );
     }
     case "getUser": {
-      const userData = await lib.getUserData(
+      const userData = await lib.getUserSnapshot(
         common.data.decodeId(0, binary).result as common.data.UserId
       );
       return common.data.maybeJust(
@@ -232,7 +232,7 @@ const callApiFunction = async (
     case "getProject": {
       const projectId = common.data.decodeId(0, binary)
         .result as common.data.ProjectId;
-      const project = await lib.getProject(projectId);
+      const project = await lib.getProjectSnapshot(projectId);
       return common.data.maybeJust(
         common.data.encodeMaybe(common.data.encodeProjectSnapshot)(project)
       );
