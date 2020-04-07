@@ -238,29 +238,6 @@ const logInUrlFromOpenIdConnectProviderAndState = (
   }
 };
 
-export const getUser = async (
-  userId: data.UserId
-): Promise<data.Result<data.UserSnapshot, string>> => {
-  const userDocument = (
-    await database.collection("user").doc(userId).get()
-  ).data();
-  if (userDocument === undefined) {
-    return data.resultError(
-      "ユーザーが見つからなかった id=" + (userId as string)
-    );
-  }
-  return data.resultOk({
-    name: userDocument.name,
-    imageHash: userDocument.imageHash,
-    introduction: userDocument.introduction,
-    createTime: firestoreTimestampToTime(userDocument.createdAt),
-    likeProjectIdList: userDocument.likedProjectIdList,
-    developeProjectIdList: userDocument.developedProjectIdList,
-    commentIdeaIdList: [],
-    getTime: common.util.timeFromDate(new Date()),
-  });
-};
-
 const firestoreTimestampToTime = (
   timestamp: admin.firestore.Timestamp
 ): data.Time => common.util.timeFromDate(timestamp.toDate());
