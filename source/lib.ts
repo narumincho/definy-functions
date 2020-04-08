@@ -268,7 +268,7 @@ const logInRedirectUri = (
   (openIdConnectProvider as string);
 
 /**
- * OpenIdConnectで外部ログインからの受け取ったデータを元にログイントークンの入ったURLを返す
+ * OpenIdConnectで外部ログインからの受け取ったデータを元に,ログインする前のURLとアクセストークンを返す
  * @param openIdConnectProvider
  * @param code
  * @param state
@@ -277,7 +277,7 @@ export const logInCallback = async (
   openIdConnectProvider: data.OpenIdConnectProvider,
   code: string,
   state: string
-): Promise<data.UrlData> => {
+): Promise<{ urlData: data.UrlData; accessToken: data.AccessToken }> => {
   const documentReference = database.collection("openConnectState").doc(state);
   const stateData = (await documentReference.get()).data();
   if (stateData === undefined || stateData.provider !== openIdConnectProvider) {
@@ -307,8 +307,8 @@ export const logInCallback = async (
       openIdConnectProvider
     );
     return {
-      ...stateData.urlData,
-      accessToken: data.maybeJust(accessToken),
+      urlData: stateData.urlData,
+      accessToken: accessToken,
     };
   }
   const userQueryDocumentSnapshot = documentList[0];
@@ -323,8 +323,8 @@ export const logInCallback = async (
     ),
   });
   return {
-    ...stateData.urlData,
-    accessToken: data.maybeJust(accessTokenData.accessToken),
+    urlData: stateData.urlData,
+    accessToken: accessTokenData.accessToken,
   };
 };
 

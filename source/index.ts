@@ -17,8 +17,11 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   const requestUrl = new URL(
     "https://" + request.hostname + request.originalUrl
   );
-  const urlData: common.data.UrlData = common.urlDataFromUrl(requestUrl);
-  const normalizedUrl = common.urlDataToUrl(urlData);
+  const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
+  const normalizedUrl = common.urlDataAndAccessTokenToUrl(
+    urlData,
+    common.data.maybeNothing()
+  );
   console.log("requestUrl", requestUrl.toString());
   console.log("normalizedUrl", normalizedUrl.toString());
   if (requestUrl.toString() !== normalizedUrl.toString()) {
@@ -275,7 +278,6 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
 };
 
 export const logInCallback = functions.https.onRequest((request, response) => {
-  console.log(request);
   const openIdConnectProvider = request.path.substring(1);
   const code: string | undefined = request.query.code;
   const state: string | undefined = request.query.state;
@@ -284,12 +286,14 @@ export const logInCallback = functions.https.onRequest((request, response) => {
     response.redirect(
       301,
       common
-        .urlDataToUrl({
-          clientMode: common.data.clientModeRelease,
-          location: common.data.locationHome,
-          language: "English",
-          accessToken: common.data.maybeNothing(),
-        })
+        .urlDataAndAccessTokenToUrl(
+          {
+            clientMode: common.data.clientModeRelease,
+            location: common.data.locationHome,
+            language: "English",
+          },
+          common.data.maybeNothing()
+        )
         .toString()
     );
     return;
@@ -298,7 +302,15 @@ export const logInCallback = functions.https.onRequest((request, response) => {
     case "Google":
     case "GitHub": {
       lib.logInCallback(openIdConnectProvider, code, state).then((result) => {
-        response.redirect(301, common.urlDataToUrl(result).toString());
+        response.redirect(
+          301,
+          common
+            .urlDataAndAccessTokenToUrl(
+              result.urlData,
+              common.data.maybeJust(result.accessToken)
+            )
+            .toString()
+        );
       });
       return;
     }
