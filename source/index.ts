@@ -288,9 +288,9 @@ export const logInCallback = functions.https.onRequest((request, response) => {
       common
         .urlDataAndAccessTokenToUrl(
           {
-            clientMode: common.data.clientModeRelease,
+            clientMode: "Release",
             location: common.data.locationHome,
-            language: "English",
+            language: common.defaultLanguage,
           },
           common.data.maybeNothing()
         )
