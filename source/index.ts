@@ -269,8 +269,8 @@ const supportCrossOriginResourceSharing = (
 
 const allowOrigin = (httpHeaderOrigin: unknown): string => {
   if (
-    typeof httpHeaderOrigin === "string" &&
-    httpHeaderOrigin.startsWith("http://[::1]")
+    httpHeaderOrigin === common.debugOrigin ||
+    httpHeaderOrigin === common.releaseOrigin
   ) {
     return httpHeaderOrigin;
   }
