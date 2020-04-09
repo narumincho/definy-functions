@@ -260,6 +260,30 @@ const callApiFunction = async (
         )
       );
     }
+    case "createIdea": {
+      const createIdeaParameter = common.data.decodeCreateIdeaParameter(
+        0,
+        binary
+      ).result;
+      const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeIdeaSnapshotAndId)(
+          ideaSnapshotAndIdMaybe
+        )
+      );
+    }
+    case "addComment": {
+      const addCommentParameter = common.data.decodeAddCommentParameter(
+        0,
+        binary
+      ).result;
+      const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(
+          ideaSnapshotMaybe
+        )
+      );
+    }
   }
 
   return common.data.maybeNothing();

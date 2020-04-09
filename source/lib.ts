@@ -746,19 +746,29 @@ export const getProjectSnapshot = async (
 };
 
 export const createIdea = async (
-  accessToken: data.AccessToken,
-  ideaName: string,
-  projectId: data.ProjectId
+  createIdeaParameter: data.CreateIdeaParameter
 ): Promise<data.Maybe<data.IdeaSnapshotAndId>> => {
-  const userDataMaybe = await getUserByAccessToken(accessToken);
+  const userDataMaybe = await getUserByAccessToken(
+    createIdeaParameter.accessToken
+  );
   if (userDataMaybe._ === "Nothing") {
     return data.maybeNothing();
   }
-  const validIdeaName = common.stringToValidIdeaName(ideaName);
+  const validIdeaName = common.stringToValidIdeaName(
+    createIdeaParameter.ideaName
+  );
   if (validIdeaName === null) {
     return data.maybeNothing();
   }
-  if (!(await database.collection("project").doc(projectId).get()).exists) {
+  // プロジェクトの存在確認
+  if (
+    !(
+      await database
+        .collection("project")
+        .doc(createIdeaParameter.projectId)
+        .get()
+    ).exists
+  ) {
     return data.maybeNothing();
   }
   const createTime = admin.firestore.Timestamp.now();
@@ -766,7 +776,7 @@ export const createIdea = async (
   const ideaData: IdeaData = {
     name: validIdeaName,
     createUserId: userDataMaybe.value.id,
-    projectId: projectId,
+    projectId: createIdeaParameter.projectId,
     createTime: createTime,
     itemList: [],
     updateTime: createTime,
@@ -825,11 +835,11 @@ const ideaDocumentToIdeaSnapshot = (
   getTime: getTime,
 });
 
-export const addComment = async (
-  accessToken: data.AccessToken,
-  ideaId: data.IdeaId,
-  comment: string
-): Promise<data.Maybe<data.IdeaSnapshot>> => {
+export const addComment = async ({
+  accessToken,
+  comment,
+  ideaId,
+}: data.AddCommentParameter): Promise<data.Maybe<data.IdeaSnapshot>> => {
   const validComment = common.stringToValidComment(comment);
   if (validComment === null) {
     return data.maybeNothing();
