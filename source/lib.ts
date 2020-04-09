@@ -32,6 +32,11 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     value: ProjectData;
     subCollections: {};
   };
+  idea: {
+    key: data.IdeaId;
+    value: IdeaData;
+    subCollections: {};
+  };
 }>;
 
 type StateData = {
@@ -90,10 +95,19 @@ type ProjectData = {
 };
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
-  /** プロバイダー (例: LINE, Google, GitHub) */
+  /** プロバイダー (例: Google, GitHub) */
   readonly provider: data.OpenIdConnectProvider;
   /** プロバイダー内でのアカウントID */
   readonly idInProvider: string;
+};
+
+type IdeaData = {
+  readonly name: string;
+  readonly createUserId: data.UserId;
+  readonly createTime: admin.firestore.Timestamp;
+  readonly projectId: data.ProjectId;
+  readonly itemList: ReadonlyArray<data.IdeaItem>;
+  readonly updateTime: admin.firestore.Timestamp;
 };
 
 type ReleasePartMeta = {
@@ -699,7 +713,7 @@ export const getAllProjectId = async (): Promise<
   ReadonlyArray<data.ProjectId>
 > => {
   const documentList = await database.collection("project").listDocuments();
-  const list = [];
+  const list: Array<data.ProjectId> = [];
   for (const document of documentList) {
     list.push(document.id);
   }
@@ -729,4 +743,49 @@ export const getProjectSnapshot = async (
     getTime: common.util.timeFromDate(new Date()),
     updateTime: firestoreTimestampToTime(document.updateTime),
   });
+};
+
+export const getIdea = async (
+  ideaId: data.IdeaId
+): Promise<data.Maybe<data.Idea>> => {
+  const document = (await database.collection("idea").doc(ideaId).get()).data();
+  if (document === undefined) {
+    return data.maybeNothing();
+  }
+  return data.maybeJust({
+    name: document.name,
+    createUser: document.createUserId,
+    projectId: document.projectId,
+    createTime: firestoreTimestampToTime(document.createTime),
+    itemList: document.itemList,
+    updateTime: firestoreTimestampToTime(document.updateTime),
+    getTime: common.util.timeFromDate(new Date()),
+  });
+};
+
+export const getIdeaSnapshotAndIdListByProjectId = async (
+  projectId: data.ProjectId
+): Promise<ReadonlyArray<data.IdeaSnapshotAndId>> => {
+  const querySnapshot = await database
+    .collection("idea")
+    .where("projectId", "==", projectId)
+    .get();
+  const list: Array<data.IdeaSnapshotAndId> = [];
+  const getTime = common.util.timeFromDate(new Date());
+  for (const document of querySnapshot.docs) {
+    const documentValue = document.data();
+    list.push({
+      id: document.id,
+      snapshot: {
+        name: documentValue.name,
+        createUser: documentValue.createUserId,
+        projectId: documentValue.projectId,
+        createTime: firestoreTimestampToTime(documentValue.createTime),
+        itemList: documentValue.itemList,
+        updateTime: firestoreTimestampToTime(documentValue.updateTime),
+        getTime: getTime,
+      },
+    });
+  }
+  return list;
 };

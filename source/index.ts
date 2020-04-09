@@ -235,9 +235,29 @@ const callApiFunction = async (
     case "getProject": {
       const projectId = common.data.decodeId(0, binary)
         .result as common.data.ProjectId;
-      const project = await lib.getProjectSnapshot(projectId);
+      const projectMaybe = await lib.getProjectSnapshot(projectId);
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProjectSnapshot)(project)
+        common.data.encodeMaybe(common.data.encodeProjectSnapshot)(projectMaybe)
+      );
+    }
+    case "getIdea": {
+      const ideaId = common.data.decodeId(0, binary)
+        .result as common.data.IdeaId;
+      const ideaMaybe = await lib.getIdea(ideaId);
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeIdea)(ideaMaybe)
+      );
+    }
+    case "getIdeaSnapshotAndIdListByProjectId": {
+      const projectId = common.data.decodeId(0, binary)
+        .result as common.data.ProjectId;
+      const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
+        projectId
+      );
+      return common.data.maybeJust(
+        common.data.encodeList(common.data.encodeIdeaSnapshotAndId)(
+          ideaSnapshotAndIdList
+        )
       );
     }
   }
