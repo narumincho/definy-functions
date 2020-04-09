@@ -245,7 +245,7 @@ const callApiFunction = async (
         .result as common.data.IdeaId;
       const ideaMaybe = await lib.getIdea(ideaId);
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeIdea)(ideaMaybe)
+        common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(ideaMaybe)
       );
     }
     case "getIdeaSnapshotAndIdListByProjectId": {

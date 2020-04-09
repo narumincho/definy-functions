@@ -745,22 +745,52 @@ export const getProjectSnapshot = async (
   });
 };
 
+export const createIdea = async (
+  accessToken: data.AccessToken,
+  ideaName: string,
+  projectId: data.ProjectId
+): Promise<data.Maybe<data.IdeaSnapshotAndId>> => {
+  const userDataMaybe = await getUserByAccessToken(accessToken);
+  if (userDataMaybe._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const validIdeaName = common.stringToValidIdeaName(ideaName);
+  if (validIdeaName === null) {
+    return data.maybeNothing();
+  }
+  if (!(await database.collection("project").doc(projectId).get()).exists) {
+    return data.maybeNothing();
+  }
+  const createTime = admin.firestore.Timestamp.now();
+  const ideaId = createRandomId() as data.IdeaId;
+  const ideaData: IdeaData = {
+    name: validIdeaName,
+    createUserId: userDataMaybe.value.id,
+    projectId: projectId,
+    createTime: createTime,
+    itemList: [],
+    updateTime: createTime,
+  };
+  await database.collection("idea").doc(ideaId).create(ideaData);
+  return data.maybeJust({
+    id: ideaId,
+    snapshot: ideaDocumentToIdeaSnapshot(
+      ideaData,
+      firestoreTimestampToTime(createTime)
+    ),
+  });
+};
+
 export const getIdea = async (
   ideaId: data.IdeaId
-): Promise<data.Maybe<data.Idea>> => {
+): Promise<data.Maybe<data.IdeaSnapshot>> => {
   const document = (await database.collection("idea").doc(ideaId).get()).data();
   if (document === undefined) {
     return data.maybeNothing();
   }
-  return data.maybeJust({
-    name: document.name,
-    createUser: document.createUserId,
-    projectId: document.projectId,
-    createTime: firestoreTimestampToTime(document.createTime),
-    itemList: document.itemList,
-    updateTime: firestoreTimestampToTime(document.updateTime),
-    getTime: common.util.timeFromDate(new Date()),
-  });
+  return data.maybeJust(
+    ideaDocumentToIdeaSnapshot(document, common.util.timeFromDate(new Date()))
+  );
 };
 
 export const getIdeaSnapshotAndIdListByProjectId = async (
@@ -776,16 +806,21 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
     const documentValue = document.data();
     list.push({
       id: document.id,
-      snapshot: {
-        name: documentValue.name,
-        createUser: documentValue.createUserId,
-        projectId: documentValue.projectId,
-        createTime: firestoreTimestampToTime(documentValue.createTime),
-        itemList: documentValue.itemList,
-        updateTime: firestoreTimestampToTime(documentValue.updateTime),
-        getTime: getTime,
-      },
+      snapshot: ideaDocumentToIdeaSnapshot(documentValue, getTime),
     });
   }
   return list;
 };
+
+const ideaDocumentToIdeaSnapshot = (
+  ideaDocument: IdeaData,
+  getTime: common.data.Time
+): data.IdeaSnapshot => ({
+  name: ideaDocument.name,
+  createUser: ideaDocument.createUserId,
+  projectId: ideaDocument.projectId,
+  createTime: firestoreTimestampToTime(ideaDocument.createTime),
+  itemList: ideaDocument.itemList,
+  updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
+  getTime: getTime,
+});
