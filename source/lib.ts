@@ -824,3 +824,45 @@ const ideaDocumentToIdeaSnapshot = (
   updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
   getTime: getTime,
 });
+
+export const addComment = async (
+  accessToken: data.AccessToken,
+  ideaId: data.IdeaId,
+  comment: string
+): Promise<data.Maybe<data.IdeaSnapshot>> => {
+  const validComment = common.stringToValidComment(comment);
+  if (validComment === null) {
+    return data.maybeNothing();
+  }
+  const user = await getUserByAccessToken(accessToken);
+  if (user._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const ideaDocument = (
+    await database.collection("idea").doc(ideaId).get()
+  ).data();
+  if (ideaDocument === undefined) {
+    return data.maybeNothing();
+  }
+  const updateTime = new Date();
+  const newItemList: ReadonlyArray<data.IdeaItem> = [
+    ...ideaDocument.itemList,
+    data.ideaItemComment({
+      body: validComment,
+      createdAt: common.util.timeFromDate(updateTime),
+      createdBy: user.value.id,
+    }),
+  ];
+  const newIdeaData: IdeaData = {
+    ...ideaDocument,
+    itemList: newItemList,
+    updateTime: admin.firestore.Timestamp.fromDate(updateTime),
+  };
+  await database.collection("idea").doc(ideaId).update(newIdeaData);
+  return data.maybeJust(
+    ideaDocumentToIdeaSnapshot(
+      newIdeaData,
+      common.util.timeFromDate(updateTime)
+    )
+  );
+};
