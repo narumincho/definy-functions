@@ -40,7 +40,7 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
 }>;
 
 type StateData = {
-  createdAt: admin.firestore.Timestamp;
+  createTime: admin.firestore.Timestamp;
   urlData: data.UrlData;
   provider: data.OpenIdConnectProvider;
 };
@@ -78,9 +78,9 @@ type UserData = {
 
   readonly commentedIdeaIdList: ReadonlyArray<data.IdeaId>;
   /** アクセストークンのハッシュ値 */
-  readonly accessTokenHashList: Array<AccessTokenHash>;
+  readonly accessTokenHash: AccessTokenHash;
   /** アクセストークンを発行した日時 */
-  readonly accessTokenIssuedAtList: ReadonlyArray<admin.firestore.Timestamp>;
+  readonly accessTokenIssueTime: admin.firestore.Timestamp;
   /** ユーザーのログイン */
   readonly openIdConnect: OpenIdConnectProviderAndId;
 };
@@ -215,7 +215,7 @@ const createStateDocument = async (
   createdAt: admin.firestore.Timestamp
 ): Promise<void> => {
   const stateData: StateData = {
-    createdAt: createdAt,
+    createTime: createdAt,
     urlData: requestLogInUrlRequestData.urlData,
     provider: requestLogInUrlRequestData.openIdConnectProvider,
   };
@@ -329,11 +329,11 @@ export const logInCallback = async (
   const userDocumentReference = userQueryDocumentSnapshot.ref;
   const accessTokenData = issueAccessToken();
   await userDocumentReference.update({
-    accessTokenHashList: admin.firestore.FieldValue.arrayUnion(
+    accessTokenHash: admin.firestore.FieldValue.arrayUnion(
       accessTokenData.accessTokenHash
     ),
-    accessTokenIssuedAtList: admin.firestore.FieldValue.arrayUnion(
-      accessTokenData.issuedAt
+    accessTokenIssueTime: admin.firestore.FieldValue.arrayUnion(
+      accessTokenData.issueTime
     ),
   });
   return {
@@ -497,8 +497,8 @@ const createUser = async (
       developedProjectIdList: [],
       imageHash: imageHash,
       introduction: "",
-      accessTokenHashList: [accessTokenData.accessTokenHash],
-      accessTokenIssuedAtList: [accessTokenData.issuedAt],
+      accessTokenHash: accessTokenData.accessTokenHash,
+      accessTokenIssueTime: accessTokenData.issueTime,
       likedProjectIdList: [],
       openIdConnect: {
         idInProvider: providerUserData.id,
@@ -576,7 +576,7 @@ const getOpenIdConnectClientId = (
 const issueAccessToken = (): {
   accessToken: data.AccessToken;
   accessTokenHash: AccessTokenHash;
-  issuedAt: admin.firestore.Timestamp;
+  issueTime: admin.firestore.Timestamp;
 } => {
   const accessToken = crypto
     .randomBytes(32)
@@ -584,7 +584,7 @@ const issueAccessToken = (): {
   return {
     accessToken: accessToken,
     accessTokenHash: hashAccessToken(accessToken),
-    issuedAt: admin.firestore.Timestamp.now(),
+    issueTime: admin.firestore.Timestamp.now(),
   };
 };
 
@@ -601,7 +601,7 @@ export const getUserByAccessToken = async (
   const userDataDocs = (
     await database
       .collection("user")
-      .where("accessTokenHashList", "array-contains", accessTokenHash)
+      .where("accessTokenHash", "==", accessTokenHash)
       .get()
   ).docs;
   if (userDataDocs.length !== 1) {
