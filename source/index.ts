@@ -248,7 +248,7 @@ const callApiFunction = async (
         common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(ideaMaybe)
       );
     }
-    case "getIdeaSnapshotAndIdListByProjectId": {
+    case "getIdeaAndIdListByProjectId": {
       const projectId = common.data.decodeId(0, binary)
         .result as common.data.ProjectId;
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
