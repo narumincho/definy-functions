@@ -115,6 +115,8 @@ const englishDescription = (location: common.data.Location): string => {
       return "Definy User page id=" + (location.userId as string);
     case "Idea":
       return "Definy Idea page id=" + (location.ideaId as string);
+    case "Suggestion":
+      return "Definy suggestion page id=" + (location.suggestionId as string);
   }
 };
 
@@ -132,6 +134,8 @@ const japaneseDescription = (location: common.data.Location): string => {
       return "ユーザー id=" + (location.userId as string);
     case "Idea":
       return "アイデア id=" + (location.ideaId as string);
+    case "Suggestion":
+      return "提案 id=" + (location.suggestionId as string);
   }
 };
 
@@ -149,6 +153,8 @@ const esperantoDescription = (location: common.data.Location): string => {
       return "uzantopaĝo id=" + (location.userId as string);
     case "Idea":
       return "Ideopaĝo id=" + (location.ideaId as string);
+    case "Suggestion":
+      return "sugestapaĝo id=" + (location.suggestionId as string);
   }
 };
 

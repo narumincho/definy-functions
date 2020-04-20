@@ -37,6 +37,11 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     value: IdeaData;
     subCollections: {};
   };
+  suggestion: {
+    key: data.SuggestionId;
+    value: SuggestionData;
+    subCollections: {};
+  };
 }>;
 
 type StateData = {
@@ -92,6 +97,8 @@ type ProjectData = {
   readonly createTime: admin.firestore.Timestamp;
   readonly updateTime: admin.firestore.Timestamp;
   readonly createUserId: data.UserId;
+  readonly partIdList: ReadonlyArray<data.PartId>;
+  readonly typePartIdList: ReadonlyArray<data.TypeId>;
 };
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
@@ -109,6 +116,8 @@ type IdeaData = {
   readonly itemList: ReadonlyArray<data.IdeaItem>;
   readonly updateTime: admin.firestore.Timestamp;
 };
+
+type SuggestionData = {};
 
 type ReleasePartMeta = {
   /** パーツの名前 */
@@ -674,6 +683,8 @@ export const createProject = async (
         createUserId: userData.id,
         createTime: createTime,
         updateTime: createTime,
+        partIdList: [],
+        typePartIdList: [],
       };
 
       database.collection("project").doc(projectId).create(project);
@@ -687,6 +698,8 @@ export const createProject = async (
           createTime: createTimeAsTime,
           updateTime: createTimeAsTime,
           getTime: createTimeAsTime,
+          partIdList: project.partIdList,
+          typePartIdList: project.typePartIdList,
         },
       });
     }
@@ -738,6 +751,8 @@ export const getProjectSnapshot = async (
     createUser: document.createUserId,
     getTime: common.util.timeFromDate(new Date()),
     updateTime: firestoreTimestampToTime(document.updateTime),
+    partIdList: document.partIdList,
+    typePartIdList: document.typePartIdList,
   });
 };
 
@@ -853,11 +868,11 @@ export const addComment = async ({
   const updateTime = new Date();
   const newItemList: ReadonlyArray<data.IdeaItem> = [
     ...ideaDocument.itemList,
-    data.ideaItemComment({
-      body: validComment,
-      createdAt: common.util.timeFromDate(updateTime),
-      createdBy: user.value.id,
-    }),
+    {
+      body: data.itemBodyComment(validComment),
+      createTime: common.util.timeFromDate(updateTime),
+      createUserId: user.value.id,
+    },
   ];
   const newIdeaData: IdeaData = {
     ...ideaDocument,
