@@ -290,6 +290,14 @@ const callApiFunction = async (
         )
       );
     }
+    case "getSuggestion": {
+      const suggestionId = common.data.decodeId(0, binary)
+        .result as common.data.SuggestionId;
+      const suggestionMaybe = await lib.getSuggestion(suggestionId);
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeSuggestion)(suggestionMaybe)
+      );
+    }
   }
 
   return common.data.maybeNothing();

@@ -117,7 +117,14 @@ type IdeaData = {
   readonly updateTime: admin.firestore.Timestamp;
 };
 
-type SuggestionData = {};
+type SuggestionData = {
+  name: string;
+  reason: string;
+  state: data.SuggestionState;
+  changeList: ReadonlyArray<data.Change>;
+  projectId: data.ProjectId;
+  ideaId: data.IdeaId;
+};
 
 type ReleasePartMeta = {
   /** パーツの名前 */
@@ -886,4 +893,23 @@ export const addComment = async ({
       common.util.timeFromDate(updateTime)
     )
   );
+};
+
+export const getSuggestion = async (
+  suggestionId: data.SuggestionId
+): Promise<data.Maybe<data.Suggestion>> => {
+  const document = (
+    await database.collection("suggestion").doc(suggestionId).get()
+  ).data();
+  if (document === undefined) {
+    return data.maybeNothing();
+  }
+  return data.maybeJust({
+    name: document.name,
+    reason: document.reason,
+    changeList: document.changeList,
+    ideaId: document.ideaId,
+    projectId: document.projectId,
+    state: document.state,
+  });
 };
