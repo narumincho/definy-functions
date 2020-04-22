@@ -295,7 +295,9 @@ const callApiFunction = async (
         .result as common.data.SuggestionId;
       const suggestionMaybe = await lib.getSuggestion(suggestionId);
       return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeSuggestion)(suggestionMaybe)
+        common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+          suggestionMaybe
+        )
       );
     }
   }

@@ -10,6 +10,7 @@ import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import * as sharp from "sharp";
 import * as image from "./image";
+import { AsyncLocalStorage } from "async_hooks";
 
 const app = admin.initializeApp();
 
@@ -98,7 +99,7 @@ type ProjectData = {
   readonly updateTime: admin.firestore.Timestamp;
   readonly createUserId: data.UserId;
   readonly partIdList: ReadonlyArray<data.PartId>;
-  readonly typePartIdList: ReadonlyArray<data.TypeId>;
+  readonly typePartIdList: ReadonlyArray<data.TypePartId>;
 };
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
@@ -120,6 +121,7 @@ type IdeaData = {
 type SuggestionData = {
   name: string;
   reason: string;
+  createUserId: data.UserId;
   state: data.SuggestionState;
   changeList: ReadonlyArray<data.Change>;
   projectId: data.ProjectId;
@@ -897,7 +899,7 @@ export const addComment = async ({
 
 export const getSuggestion = async (
   suggestionId: data.SuggestionId
-): Promise<data.Maybe<data.Suggestion>> => {
+): Promise<data.Maybe<data.SuggestionSnapshot>> => {
   const document = (
     await database.collection("suggestion").doc(suggestionId).get()
   ).data();
@@ -907,9 +909,11 @@ export const getSuggestion = async (
   return data.maybeJust({
     name: document.name,
     reason: document.reason,
+    createUserId: document.createUserId,
     changeList: document.changeList,
     ideaId: document.ideaId,
     projectId: document.projectId,
     state: document.state,
+    getTime: common.util.timeFromDate(new Date()),
   });
 };
