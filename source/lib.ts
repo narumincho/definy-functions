@@ -119,13 +119,13 @@ type IdeaData = {
 };
 
 type SuggestionData = {
-  name: string;
-  reason: string;
-  createUserId: data.UserId;
-  state: data.SuggestionState;
-  changeList: ReadonlyArray<data.Change>;
-  projectId: data.ProjectId;
-  ideaId: data.IdeaId;
+  readonly name: string;
+  readonly reason: string;
+  readonly createUserId: data.UserId;
+  readonly state: data.SuggestionState;
+  readonly changeList: ReadonlyArray<data.Change>;
+  readonly projectId: data.ProjectId;
+  readonly ideaId: data.IdeaId;
 };
 
 type ReleasePartMeta = {
@@ -839,6 +839,8 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
       snapshot: ideaDocumentToIdeaSnapshot(documentValue, getTime),
     });
   }
+  console.log("getIdeaSnapshotAndIdListByProjectId output");
+  console.log(list);
   return list;
 };
 
