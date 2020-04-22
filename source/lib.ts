@@ -917,3 +917,60 @@ export const getSuggestion = async (
     getTime: common.util.timeFromDate(new Date()),
   });
 };
+
+export const addSuggestion = async ({
+  accessToken,
+  ideaId,
+}: data.AddSuggestionParameter): Promise<
+  data.Maybe<data.SuggestionSnapshotAndId>
+> => {
+  const userDataMaybe = await getUserByAccessToken(accessToken);
+  if (userDataMaybe._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const userData = userDataMaybe.value;
+  const ideaDataMaybe = await getIdea(ideaId);
+  if (ideaDataMaybe._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const ideaData = ideaDataMaybe.value;
+  const suggestionId = createRandomId() as data.SuggestionId;
+  const suggestionData: SuggestionData = {
+    name: "",
+    reason: "",
+    createUserId: userData.id,
+    projectId: ideaData.projectId,
+    changeList: [],
+    ideaId: ideaId,
+    state: "Creating",
+  };
+  await database
+    .collection("suggestion")
+    .doc(suggestionId)
+    .create(suggestionData);
+  const newItem: data.IdeaItem = {
+    createTime: common.util.timeFromDate(new Date()),
+    createUserId: userData.id,
+    body: data.itemBodySuggestionCreate(suggestionId),
+  };
+  await database
+    .collection("idea")
+    .doc(ideaId)
+    .update({
+      itemList: admin.firestore.FieldValue.arrayUnion([newItem]),
+    });
+
+  return data.maybeJust({
+    id: suggestionId,
+    snapshot: {
+      name: suggestionData.name,
+      reason: suggestionData.reason,
+      changeList: suggestionData.changeList,
+      createUserId: suggestionData.createUserId,
+      ideaId: suggestionData.ideaId,
+      projectId: suggestionData.projectId,
+      state: suggestionData.state,
+      getTime: common.util.timeFromDate(new Date()),
+    },
+  });
+};
