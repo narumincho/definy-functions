@@ -982,7 +982,7 @@ export const addSuggestion = async ({
 };
 
 export const updateSuggestion = async ({
-  accessToke: accessToken,
+  accessToken,
   name,
   reason,
   changeList,
