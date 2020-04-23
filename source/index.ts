@@ -171,20 +171,17 @@ export const api = functions.https.onRequest(async (request, response) => {
     request.path.split("/")[1],
     request.body as Buffer
   );
-  switch (result._) {
-    case "Just":
-      response.send(Buffer.from(result.value));
-      return;
-    case "Nothing":
-      response.send("想定外のパスを受けとった request.path=" + request.path);
-      return;
+  if (result === undefined) {
+    response.send("想定外のパスを受けとった request.path=" + request.path);
+    return;
   }
+  response.send(Buffer.from(result));
 });
 
 const callApiFunction = async (
   path: string,
   binary: Uint8Array
-): Promise<common.data.Maybe<ReadonlyArray<number>>> => {
+): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
     case "requestLogInUrl": {
       const requestData = common.data.decodeRequestLogInUrlRequestData(
@@ -192,14 +189,12 @@ const callApiFunction = async (
         binary
       ).result;
       const url = await lib.requestLogInUrl(requestData);
-      return common.data.maybeJust(common.data.encodeString(url.toString()));
+      return common.data.encodeString(url.toString());
     }
     case "getUserByAccessToken": {
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUserSnapshotAndId)(
-          await lib.getUserByAccessToken(
-            common.data.decodeToken(0, binary).result as common.data.AccessToken
-          )
+      return common.data.encodeMaybe(common.data.encodeUserSnapshotAndId)(
+        await lib.getUserByAccessToken(
+          common.data.decodeToken(0, binary).result as common.data.AccessToken
         )
       );
     }
@@ -207,15 +202,13 @@ const callApiFunction = async (
       const userData = await lib.getUserSnapshot(
         common.data.decodeId(0, binary).result as common.data.UserId
       );
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeUserSnapshot)(userData)
-      );
+      return common.data.encodeMaybe(common.data.encodeUserSnapshot)(userData);
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
         common.data.decodeToken(0, binary).result as common.data.FileHash
       );
-      return common.data.maybeJust(common.data.encodeBinary(imageBinary));
+      return common.data.encodeBinary(imageBinary);
     }
     case "createProject": {
       const createProjectParameter = common.data.decodeCreateProjectParameter(
@@ -226,33 +219,27 @@ const callApiFunction = async (
         createProjectParameter.accessToken,
         createProjectParameter.projectName
       );
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProjectSnapshotAndId)(
-          newProject
-        )
+      return common.data.encodeMaybe(common.data.encodeProjectSnapshotAndId)(
+        newProject
       );
     }
     case "getAllProjectId": {
       const projectIdList = await lib.getAllProjectId();
-      return common.data.maybeJust(
-        common.data.encodeList(common.data.encodeId)(projectIdList)
-      );
+      return common.data.encodeList(common.data.encodeId)(projectIdList);
     }
     case "getProject": {
       const projectId = common.data.decodeId(0, binary)
         .result as common.data.ProjectId;
       const projectMaybe = await lib.getProjectSnapshot(projectId);
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeProjectSnapshot)(projectMaybe)
+      return common.data.encodeMaybe(common.data.encodeProjectSnapshot)(
+        projectMaybe
       );
     }
     case "getIdea": {
       const ideaId = common.data.decodeId(0, binary)
         .result as common.data.IdeaId;
       const ideaMaybe = await lib.getIdea(ideaId);
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(ideaMaybe)
-      );
+      return common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(ideaMaybe);
     }
     case "getIdeaAndIdListByProjectId": {
       const projectId = common.data.decodeId(0, binary)
@@ -260,10 +247,8 @@ const callApiFunction = async (
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
         projectId
       );
-      return common.data.maybeJust(
-        common.data.encodeList(common.data.encodeIdeaSnapshotAndId)(
-          ideaSnapshotAndIdList
-        )
+      return common.data.encodeList(common.data.encodeIdeaSnapshotAndId)(
+        ideaSnapshotAndIdList
       );
     }
     case "createIdea": {
@@ -272,10 +257,8 @@ const callApiFunction = async (
         binary
       ).result;
       const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeIdeaSnapshotAndId)(
-          ideaSnapshotAndIdMaybe
-        )
+      return common.data.encodeMaybe(common.data.encodeIdeaSnapshotAndId)(
+        ideaSnapshotAndIdMaybe
       );
     }
     case "addComment": {
@@ -284,20 +267,16 @@ const callApiFunction = async (
         binary
       ).result;
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(
-          ideaSnapshotMaybe
-        )
+      return common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(
+        ideaSnapshotMaybe
       );
     }
     case "getSuggestion": {
       const suggestionId = common.data.decodeId(0, binary)
         .result as common.data.SuggestionId;
       const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
-          suggestionMaybe
-        )
+      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+        suggestionMaybe
       );
     }
     case "addSuggestion": {
@@ -308,10 +287,8 @@ const callApiFunction = async (
       const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
         addSuggestionParameter
       );
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeSuggestionSnapshotAndId)(
-          suggestionSnapshotAndIdMaybe
-        )
+      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshotAndId)(
+        suggestionSnapshotAndIdMaybe
       );
     }
     case "updateSuggestion": {
@@ -322,15 +299,11 @@ const callApiFunction = async (
       const suggestionMaybe = await lib.updateSuggestion(
         updateSuggestionParameter
       );
-      return common.data.maybeJust(
-        common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
-          suggestionMaybe
-        )
+      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+        suggestionMaybe
       );
     }
   }
-
-  return common.data.maybeNothing();
 };
 
 /**
