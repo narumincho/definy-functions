@@ -314,6 +314,20 @@ const callApiFunction = async (
         )
       );
     }
+    case "updateSuggestion": {
+      const updateSuggestionParameter = common.data.decodeUpdateSuggestionParameter(
+        0,
+        binary
+      ).result;
+      const suggestionMaybe = await lib.updateSuggestion(
+        updateSuggestionParameter
+      );
+      return common.data.maybeJust(
+        common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+          suggestionMaybe
+        )
+      );
+    }
   }
 
   return common.data.maybeNothing();
