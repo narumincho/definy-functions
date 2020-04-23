@@ -10,7 +10,6 @@ import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import * as sharp from "sharp";
 import * as image from "./image";
-import { AsyncLocalStorage } from "async_hooks";
 
 const app = admin.initializeApp();
 
@@ -126,6 +125,7 @@ type SuggestionData = {
   readonly changeList: ReadonlyArray<data.Change>;
   readonly projectId: data.ProjectId;
   readonly ideaId: data.IdeaId;
+  readonly updateTime: admin.firestore.Timestamp;
 };
 
 type ReleasePartMeta = {
@@ -916,6 +916,7 @@ export const getSuggestion = async (
     ideaId: document.ideaId,
     projectId: document.projectId,
     state: document.state,
+    updateTime: firestoreTimestampToTime(document.updateTime),
     getTime: common.util.timeFromDate(new Date()),
   });
 };
@@ -937,6 +938,7 @@ export const addSuggestion = async ({
   }
   const ideaData = ideaDataMaybe.value;
   const suggestionId = createRandomId() as data.SuggestionId;
+  const nowTime = new Date();
   const suggestionData: SuggestionData = {
     name: "",
     reason: "",
@@ -944,6 +946,7 @@ export const addSuggestion = async ({
     projectId: ideaData.projectId,
     changeList: [],
     ideaId: ideaId,
+    updateTime: admin.firestore.Timestamp.fromDate(nowTime),
     state: "Creating",
   };
   await database
@@ -951,7 +954,7 @@ export const addSuggestion = async ({
     .doc(suggestionId)
     .create(suggestionData);
   const newItem: data.IdeaItem = {
-    createTime: common.util.timeFromDate(new Date()),
+    createTime: common.util.timeFromDate(nowTime),
     createUserId: userData.id,
     body: data.itemBodySuggestionCreate(suggestionId),
   };
@@ -972,7 +975,51 @@ export const addSuggestion = async ({
       ideaId: suggestionData.ideaId,
       projectId: suggestionData.projectId,
       state: suggestionData.state,
+      updateTime: firestoreTimestampToTime(suggestionData.updateTime),
       getTime: common.util.timeFromDate(new Date()),
     },
+  });
+};
+
+export const updateSuggestion = async ({
+  accessToke: accessToken,
+  name,
+  reason,
+  changeList,
+  suggestionId,
+}: data.UpdateSuggestionParameter): Promise<
+  data.Maybe<data.SuggestionSnapshot>
+> => {
+  const userDataMaybe = await getUserByAccessToken(accessToken);
+  if (userDataMaybe._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const userData = userDataMaybe.value;
+  const suggestionMaybe = await getSuggestion(suggestionId);
+  if (suggestionMaybe._ === "Nothing") {
+    return data.maybeNothing();
+  }
+  const suggestion = suggestionMaybe.value;
+  if (suggestion.createUserId !== userData.id) {
+    return data.maybeNothing();
+  }
+  if (suggestion.state !== "Creating") {
+    return data.maybeNothing();
+  }
+  await database.collection("suggestion").doc(suggestionId).update({
+    name: name,
+    reason: reason,
+    changeList: changeList,
+  });
+  return data.maybeJust({
+    name: name,
+    reason: reason,
+    changeList: changeList,
+    createUserId: suggestion.createUserId,
+    ideaId: suggestion.ideaId,
+    state: suggestion.state,
+    updateTime: suggestion.updateTime,
+    getTime: common.util.timeFromDate(new Date()),
+    projectId: suggestion.projectId,
   });
 };
