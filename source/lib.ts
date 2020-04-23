@@ -959,7 +959,7 @@ export const addSuggestion = async ({
     .collection("idea")
     .doc(ideaId)
     .update({
-      itemList: admin.firestore.FieldValue.arrayUnion([newItem]),
+      itemList: admin.firestore.FieldValue.arrayUnion(newItem),
     });
 
   return data.maybeJust({
