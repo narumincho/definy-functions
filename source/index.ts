@@ -340,9 +340,9 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
 
 export const logInCallback = functions.https.onRequest((request, response) => {
   const openIdConnectProvider = request.path.substring(1);
-  const code: string | undefined = request.query.code;
-  const state: string | undefined = request.query.state;
-  if (code === undefined || state === undefined) {
+  const code: unknown = request.query.code;
+  const state: unknown = request.query.state;
+  if (!(typeof code === "string" && typeof state === "string")) {
     console.log("codeかstateが送られて来なかった。ユーザーがキャンセルした?");
     response.redirect(
       301,
