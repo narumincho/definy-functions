@@ -77,7 +77,7 @@ type UserData = {
   /**
    * プロフィール画像
    */
-  readonly imageHash: data.FileHash;
+  readonly imageHash: data.ImageToken;
   /**
    * 自己紹介文。改行文字を含めることができる。
    *
@@ -102,8 +102,8 @@ type UserData = {
 
 type ProjectData = {
   readonly name: string;
-  readonly iconHash: data.FileHash;
-  readonly imageHash: data.FileHash;
+  readonly iconHash: data.ImageToken;
+  readonly imageHash: data.ImageToken;
   readonly createTime: admin.firestore.Timestamp;
   readonly updateTime: admin.firestore.Timestamp;
   readonly createUserId: data.UserId;
@@ -498,7 +498,7 @@ const createUser = async (
   return accessTokenData.accessToken;
 };
 
-const getAndSaveUserImage = async (imageUrl: URL): Promise<data.FileHash> => {
+const getAndSaveUserImage = async (imageUrl: URL): Promise<data.ImageToken> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer",
   });
@@ -512,7 +512,7 @@ const getAndSaveUserImage = async (imageUrl: URL): Promise<data.FileHash> => {
 /**
  * Firebase Cloud Storage にPNGファイルを保存する
  */
-const savePngFile = async (buffer: Buffer): Promise<data.FileHash> =>
+const savePngFile = async (buffer: Buffer): Promise<data.ImageToken> =>
   saveFile(buffer, "image/png");
 
 /**
@@ -521,7 +521,7 @@ const savePngFile = async (buffer: Buffer): Promise<data.FileHash> =>
 const saveFile = async (
   buffer: Buffer,
   mimeType: string
-): Promise<data.FileHash> => {
+): Promise<data.ImageToken> => {
   const hash = createHashFromBuffer(buffer, mimeType);
   const file = storageDefaultBucket.file(hash);
   await file.save(buffer, { contentType: mimeType });
@@ -531,12 +531,12 @@ const saveFile = async (
 export const createHashFromBuffer = (
   data: Buffer,
   mimeType: string
-): data.FileHash =>
+): data.ImageToken =>
   crypto
     .createHash("sha256")
     .update(data)
     .update(mimeType, "utf8")
-    .digest("hex") as data.FileHash;
+    .digest("hex") as data.ImageToken;
 
 /**
  * OpenIdConnectのclientSecretはfirebaseの環境変数に設定されている
@@ -694,11 +694,14 @@ export const createProject = async (
   }
 };
 
-export const getReadableStream = (fileHash: data.FileHash): stream.Readable =>
-  storageDefaultBucket.file(fileHash).createReadStream();
+export const getReadableStream = (
+  imageToken: data.ImageToken
+): stream.Readable => storageDefaultBucket.file(imageToken).createReadStream();
 
-export const getFile = async (fileHash: data.FileHash): Promise<Uint8Array> => {
-  const file = storageDefaultBucket.file(fileHash);
+export const getFile = async (
+  imageToken: data.ImageToken
+): Promise<Uint8Array> => {
+  const file = storageDefaultBucket.file(imageToken);
   const downloadResponse = (await file.download())[0];
   return downloadResponse;
 };

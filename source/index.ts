@@ -206,7 +206,7 @@ const callApiFunction = async (
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
-        common.data.decodeToken(0, binary).result as common.data.FileHash
+        common.data.decodeToken(0, binary).result as common.data.ImageToken
       );
       return common.data.encodeBinary(imageBinary);
     }
@@ -385,6 +385,6 @@ export const getFile = functions.https.onRequest(async (request, response) => {
     return;
   }
   lib
-    .getReadableStream(request.path.split("/")[1] as common.data.FileHash)
+    .getReadableStream(request.path.split("/")[1] as common.data.ImageToken)
     .pipe(response);
 });
