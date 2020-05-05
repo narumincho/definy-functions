@@ -10,6 +10,7 @@ import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import * as sharp from "sharp";
 import * as image from "./image";
+import * as tokenize from "./tokenize";
 
 const app = admin.initializeApp();
 
@@ -109,6 +110,7 @@ type ProjectData = {
   readonly createUserId: data.UserId;
   readonly partIdList: ReadonlyArray<data.PartId>;
   readonly typePartIdList: ReadonlyArray<data.TypePartId>;
+  readonly tagList: ReadonlyArray<string>;
 };
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
@@ -125,6 +127,7 @@ type IdeaData = {
   readonly projectId: data.ProjectId;
   readonly itemList: ReadonlyArray<data.IdeaItem>;
   readonly updateTime: admin.firestore.Timestamp;
+  readonly tagList: ReadonlyArray<string>;
 };
 
 type SuggestionData = {
@@ -670,6 +673,7 @@ export const createProject = async (
         updateTime: createTime,
         partIdList: [],
         typePartIdList: [],
+        tagList: await tokenize.tokenize(projectNameWithDefault),
       };
 
       database.collection("project").doc(projectId).create(project);
@@ -779,6 +783,7 @@ export const createIdea = async (
     createTime: createTime,
     itemList: [],
     updateTime: createTime,
+    tagList: await tokenize.tokenize(validIdeaName),
   };
   await database.collection("idea").doc(ideaId).create(ideaData);
   return data.maybeJust({
@@ -869,13 +874,29 @@ export const addComment = async ({
     itemList: newItemList,
     updateTime: admin.firestore.Timestamp.fromDate(updateTime),
   };
-  await database.collection("idea").doc(ideaId).update(newIdeaData);
+  const newIdeaDataWithNewTagList: IdeaData = {
+    ...newIdeaData,
+    tagList: await tokenize.tokenize(ideaGetText(newIdeaData)),
+  };
+  await database
+    .collection("idea")
+    .doc(ideaId)
+    .update(newIdeaDataWithNewTagList);
   return data.maybeJust(
     ideaDocumentToIdeaSnapshot(
-      newIdeaData,
+      newIdeaDataWithNewTagList,
       common.util.timeFromDate(updateTime)
     )
   );
+};
+
+const ideaGetText = (ideaData: IdeaData): string => {
+  return [
+    ideaData.name,
+    ...ideaData.itemList.map((e) =>
+      e.body._ === "Comment" ? e.body.string_ : ""
+    ),
+  ].join("\n");
 };
 
 export const getSuggestion = async (
