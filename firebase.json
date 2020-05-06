@@ -10,8 +10,7 @@
       "**/node_modules/**",
       ".gitignore",
       "firebase.json",
-      "tsconfig.json",
-      "deploy.ps1"
+      "tsconfig.json"
     ]
   }
 }

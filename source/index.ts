@@ -108,15 +108,23 @@ const englishDescription = (location: common.data.Location): string => {
     case "CreateProject":
       return "Project creation page";
     case "CreateIdea":
-      return "Idea creation page projectId=" + (location.projectId as string);
+      return "Idea creation page. projectId=" + (location.projectId as string);
     case "Project":
-      return "Definy Project page id=" + (location.projectId as string);
+      return "Project page id=" + (location.projectId as string);
     case "User":
-      return "Definy User page id=" + (location.userId as string);
+      return "User page id=" + (location.userId as string);
+    case "UserList":
+      return "UserList page";
     case "Idea":
-      return "Definy Idea page id=" + (location.ideaId as string);
+      return "Idea page id=" + (location.ideaId as string);
     case "Suggestion":
-      return "Definy suggestion page id=" + (location.suggestionId as string);
+      return "suggestion page id=" + (location.suggestionId as string);
+    case "PartList":
+      return "Part list page";
+    case "TypePartList":
+      return "TypePart List page";
+    case "About":
+      return "About";
   }
 };
 
@@ -132,10 +140,18 @@ const japaneseDescription = (location: common.data.Location): string => {
       return "プロジェクト id=" + (location.projectId as string);
     case "User":
       return "ユーザー id=" + (location.userId as string);
+    case "UserList":
+      return "ユーザー一覧ページ";
     case "Idea":
       return "アイデア id=" + (location.ideaId as string);
     case "Suggestion":
       return "提案 id=" + (location.suggestionId as string);
+    case "PartList":
+      return "パーツの一覧ページ";
+    case "TypePartList":
+      return "型パーツの一覧ページ";
+    case "About":
+      return "Definyについて";
   }
 };
 
@@ -151,10 +167,18 @@ const esperantoDescription = (location: common.data.Location): string => {
       return "projektopaĝo id=" + (location.projectId as string);
     case "User":
       return "uzantopaĝo id=" + (location.userId as string);
+    case "UserList":
+      return "Uzantlisto paĝo";
     case "Idea":
       return "Ideopaĝo id=" + (location.ideaId as string);
     case "Suggestion":
       return "sugestapaĝo id=" + (location.suggestionId as string);
+    case "PartList":
+      return "partolisto paĝo";
+    case "TypePartList":
+      return "Tajpu parto paĝo";
+    case "About":
+      return "pri paĝo";
   }
 };
 
