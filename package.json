@@ -2,7 +2,7 @@
   "name": "definy-functions",
   "version": "0.0.0",
   "description": "definy code in firebase functions",
-  "main": "distribution/index.js",
+  "main": "distribution/main.js",
   "author": "narumincho",
   "repository": {
     "type": "git",
