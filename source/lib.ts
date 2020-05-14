@@ -683,7 +683,7 @@ export const createProject = async (
           name: project.name,
           iconHash: project.iconHash,
           imageHash: project.imageHash,
-          createUser: project.createUserId,
+          createUserId: project.createUserId,
           createTime: createTimeAsTime,
           updateTime: createTimeAsTime,
           getTime: createTimeAsTime,
@@ -740,7 +740,7 @@ export const getProjectSnapshot = async (
     iconHash: document.iconHash,
     imageHash: document.imageHash,
     createTime: firestoreTimestampToTime(document.createTime),
-    createUser: document.createUserId,
+    createUserId: document.createUserId,
     getTime: common.util.timeFromDate(new Date()),
     updateTime: firestoreTimestampToTime(document.updateTime),
     partIdList: document.partIdList,
@@ -833,7 +833,7 @@ const ideaDocumentToIdeaSnapshot = (
   getTime: common.data.Time
 ): data.IdeaSnapshot => ({
   name: ideaDocument.name,
-  createUser: ideaDocument.createUserId,
+  createUserId: ideaDocument.createUserId,
   projectId: ideaDocument.projectId,
   createTime: firestoreTimestampToTime(ideaDocument.createTime),
   itemList: ideaDocument.itemList,
