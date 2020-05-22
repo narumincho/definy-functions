@@ -2,7 +2,7 @@ import * as common from "definy-common";
 import { data } from "definy-common";
 import { URL } from "url";
 import * as admin from "firebase-admin";
-import * as typedFirestore from "typed-admin-firestore";
+import type * as typedFirestore from "typed-admin-firestore";
 import * as crypto from "crypto";
 import * as functions from "firebase-functions";
 import axios, { AxiosResponse } from "axios";
