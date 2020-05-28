@@ -21,37 +21,37 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
   openConnectState: {
     key: string;
     value: StateData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   user: {
     key: data.UserId;
     value: UserData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   project: {
     key: data.ProjectId;
     value: ProjectData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   idea: {
     key: data.IdeaId;
     value: IdeaData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   suggestion: {
     key: data.SuggestionId;
     value: SuggestionData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   part: {
     key: data.PartId;
     value: PartData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
   typePart: {
     key: data.TypePartId;
     value: TypePartData;
-    subCollections: {};
+    subCollections: Record<never, never>;
   };
 }>;
 
