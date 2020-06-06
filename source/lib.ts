@@ -584,7 +584,7 @@ const issueAccessToken = (): {
 const hashAccessToken = (accessToken: data.AccessToken): AccessTokenHash =>
   crypto
     .createHash("sha256")
-    .update(new Uint8Array(data.encodeToken(accessToken)))
+    .update(new Uint8Array(data.AccessToken.codec.encode(accessToken)))
     .digest("hex") as AccessTokenHash;
 
 export const getUserByAccessToken = async (
@@ -598,12 +598,12 @@ export const getUserByAccessToken = async (
       .get()
   ).docs;
   if (userDataDocs.length !== 1) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const queryDocumentSnapshot = userDataDocs[0];
   const userData = queryDocumentSnapshot.data();
 
-  return data.maybeJust<data.UserSnapshotAndId>({
+  return data.Maybe.Just<data.UserSnapshotAndId>({
     id: queryDocumentSnapshot.id as data.UserId,
     snapshot: {
       name: userData.name,
@@ -628,9 +628,9 @@ export const getUserSnapshot = async (
 ): Promise<data.Maybe<data.UserSnapshot>> => {
   const userData = (await database.collection("user").doc(userId).get()).data();
   if (userData === undefined) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
-  return data.maybeJust({
+  return data.Maybe.Just({
     name: userData.name,
     imageHash: userData.imageHash,
     introduction: userData.introduction,
@@ -677,7 +677,7 @@ export const createProject = async (
       };
 
       database.collection("project").doc(projectId).create(project);
-      return data.maybeJust<data.ProjectSnapshotAndId>({
+      return data.Maybe.Just<data.ProjectSnapshotAndId>({
         id: projectId,
         snapshot: {
           name: project.name,
@@ -693,7 +693,7 @@ export const createProject = async (
       });
     }
     case "Nothing": {
-      return data.maybeNothing();
+      return data.Maybe.Nothing();
     }
   }
 };
@@ -733,9 +733,9 @@ export const getProjectSnapshot = async (
     await database.collection("project").doc(projectId).get()
   ).data();
   if (document === undefined) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
-  return data.maybeJust<data.ProjectSnapshot>({
+  return data.Maybe.Just<data.ProjectSnapshot>({
     name: document.name,
     iconHash: document.iconHash,
     imageHash: document.imageHash,
@@ -755,13 +755,13 @@ export const createIdea = async (
     createIdeaParameter.accessToken
   );
   if (userDataMaybe._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const validIdeaName = common.stringToValidIdeaName(
     createIdeaParameter.ideaName
   );
   if (validIdeaName === null) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   // プロジェクトの存在確認
   if (
@@ -772,7 +772,7 @@ export const createIdea = async (
         .get()
     ).exists
   ) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const createTime = admin.firestore.Timestamp.now();
   const ideaId = createRandomId() as data.IdeaId;
@@ -786,7 +786,7 @@ export const createIdea = async (
     tagList: await tokenize.tokenize(validIdeaName),
   };
   await database.collection("idea").doc(ideaId).create(ideaData);
-  return data.maybeJust({
+  return data.Maybe.Just({
     id: ideaId,
     snapshot: ideaDocumentToIdeaSnapshot(
       ideaData,
@@ -800,9 +800,9 @@ export const getIdea = async (
 ): Promise<data.Maybe<data.IdeaSnapshot>> => {
   const document = (await database.collection("idea").doc(ideaId).get()).data();
   if (document === undefined) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
-  return data.maybeJust(
+  return data.Maybe.Just(
     ideaDocumentToIdeaSnapshot(document, common.util.timeFromDate(new Date()))
   );
 };
@@ -848,23 +848,23 @@ export const addComment = async ({
 }: data.AddCommentParameter): Promise<data.Maybe<data.IdeaSnapshot>> => {
   const validComment = common.stringToValidComment(comment);
   if (validComment === null) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const user = await getUserByAccessToken(accessToken);
   if (user._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const ideaDocument = (
     await database.collection("idea").doc(ideaId).get()
   ).data();
   if (ideaDocument === undefined) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const updateTime = new Date();
   const newItemList: ReadonlyArray<data.IdeaItem> = [
     ...ideaDocument.itemList,
     {
-      body: data.itemBodyComment(validComment),
+      body: data.ItemBody.Comment(validComment),
       createTime: common.util.timeFromDate(updateTime),
       createUserId: user.value.id,
     },
@@ -882,7 +882,7 @@ export const addComment = async ({
     .collection("idea")
     .doc(ideaId)
     .update(newIdeaDataWithNewTagList);
-  return data.maybeJust(
+  return data.Maybe.Just(
     ideaDocumentToIdeaSnapshot(
       newIdeaDataWithNewTagList,
       common.util.timeFromDate(updateTime)
@@ -906,9 +906,9 @@ export const getSuggestion = async (
     await database.collection("suggestion").doc(suggestionId).get()
   ).data();
   if (document === undefined) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
-  return data.maybeJust({
+  return data.Maybe.Just({
     name: document.name,
     reason: document.reason,
     createUserId: document.createUserId,
@@ -929,12 +929,12 @@ export const addSuggestion = async ({
 > => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   if (userDataMaybe._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const userData = userDataMaybe.value;
   const ideaDataMaybe = await getIdea(ideaId);
   if (ideaDataMaybe._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const ideaData = ideaDataMaybe.value;
   const suggestionId = createRandomId() as data.SuggestionId;
@@ -956,7 +956,7 @@ export const addSuggestion = async ({
   const newItem: data.IdeaItem = {
     createTime: common.util.timeFromDate(nowTime),
     createUserId: userData.id,
-    body: data.itemBodySuggestionCreate(suggestionId),
+    body: data.ItemBody.SuggestionCreate(suggestionId),
   };
   await database
     .collection("idea")
@@ -965,7 +965,7 @@ export const addSuggestion = async ({
       itemList: admin.firestore.FieldValue.arrayUnion(newItem),
     });
 
-  return data.maybeJust({
+  return data.Maybe.Just({
     id: suggestionId,
     snapshot: {
       name: suggestionData.name,
@@ -992,26 +992,26 @@ export const updateSuggestion = async ({
 > => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   if (userDataMaybe._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const userData = userDataMaybe.value;
   const suggestionMaybe = await getSuggestion(suggestionId);
   if (suggestionMaybe._ === "Nothing") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   const suggestion = suggestionMaybe.value;
   if (suggestion.createUserId !== userData.id) {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   if (suggestion.state !== "Creating") {
-    return data.maybeNothing();
+    return data.Maybe.Nothing();
   }
   await database.collection("suggestion").doc(suggestionId).update({
     name: name,
     reason: reason,
     changeList: changeList,
   });
-  return data.maybeJust({
+  return data.Maybe.Just({
     name: name,
     reason: reason,
     changeList: changeList,

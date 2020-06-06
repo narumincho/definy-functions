@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
 import { URL } from "url";
 import * as common from "definy-common";
+import { data } from "definy-common";
 import * as lib from "./lib";
 
 /* =====================================================================
@@ -20,7 +21,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
   const normalizedUrl = common.urlDataAndAccessTokenToUrl(
     urlData,
-    common.data.maybeNothing()
+    data.Maybe.Nothing()
   );
   console.log("requestUrl", requestUrl.toString());
   console.log("normalizedUrl", normalizedUrl.toString());
@@ -76,7 +77,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   );
 });
 
-const loadingMessage = (language: common.data.Language): string => {
+const loadingMessage = (language: data.Language): string => {
   switch (language) {
     case "English":
       return "Loading Definy ...";
@@ -88,8 +89,8 @@ const loadingMessage = (language: common.data.Language): string => {
 };
 
 const description = (
-  language: common.data.Language,
-  location: common.data.Location
+  language: data.Language,
+  location: data.Location
 ): string => {
   switch (language) {
     case "English":
@@ -101,7 +102,7 @@ const description = (
   }
 };
 
-const englishDescription = (location: common.data.Location): string => {
+const englishDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "Definy is Web App for Web App.";
@@ -128,7 +129,7 @@ const englishDescription = (location: common.data.Location): string => {
   }
 };
 
-const japaneseDescription = (location: common.data.Location): string => {
+const japaneseDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "ブラウザで動作する革新的なプログラミング言語!";
@@ -155,7 +156,7 @@ const japaneseDescription = (location: common.data.Location): string => {
   }
 };
 
-const esperantoDescription = (location: common.data.Location): string => {
+const esperantoDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "Noviga programlingvo, kiu funkcias en la retumilo";
@@ -208,34 +209,34 @@ const callApiFunction = async (
 ): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
     case "requestLogInUrl": {
-      const requestData = common.data.decodeRequestLogInUrlRequestData(
+      const requestData = data.RequestLogInUrlRequestData.codec.decode(
         0,
         binary
       ).result;
       const url = await lib.requestLogInUrl(requestData);
-      return common.data.encodeString(url.toString());
+      return data.String.codec.encode(url.toString());
     }
     case "getUserByAccessToken": {
-      return common.data.encodeMaybe(common.data.encodeUserSnapshotAndId)(
+      return data.Maybe.codec(data.UserSnapshotAndId.codec).encode(
         await lib.getUserByAccessToken(
-          common.data.decodeToken(0, binary).result as common.data.AccessToken
+          data.AccessToken.codec.decode(0, binary).result
         )
       );
     }
     case "getUser": {
       const userData = await lib.getUserSnapshot(
-        common.data.decodeId(0, binary).result as common.data.UserId
+        data.UserId.codec.decode(0, binary).result
       );
-      return common.data.encodeMaybe(common.data.encodeUserSnapshot)(userData);
+      return data.Maybe.codec(data.UserSnapshot.codec).encode(userData);
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
-        common.data.decodeToken(0, binary).result as common.data.ImageToken
+        data.ImageToken.codec.decode(0, binary).result
       );
-      return common.data.encodeBinary(imageBinary);
+      return data.Binary.codec.encode(imageBinary);
     }
     case "createProject": {
-      const createProjectParameter = common.data.decodeCreateProjectParameter(
+      const createProjectParameter = data.CreateProjectParameter.codec.decode(
         0,
         binary
       ).result;
@@ -243,87 +244,82 @@ const callApiFunction = async (
         createProjectParameter.accessToken,
         createProjectParameter.projectName
       );
-      return common.data.encodeMaybe(common.data.encodeProjectSnapshotAndId)(
+      return data.Maybe.codec(data.ProjectSnapshotAndId.codec).encode(
         newProject
       );
     }
     case "getAllProjectId": {
-      const projectIdList = await lib.getAllProjectId();
-      return common.data.encodeList(common.data.encodeId)(projectIdList);
-    }
-    case "getProject": {
-      const projectId = common.data.decodeId(0, binary)
-        .result as common.data.ProjectId;
-      const projectMaybe = await lib.getProjectSnapshot(projectId);
-      return common.data.encodeMaybe(common.data.encodeProjectSnapshot)(
-        projectMaybe
+      return data.List.codec(data.ProjectId.codec).encode(
+        await lib.getAllProjectId()
       );
     }
+    case "getProject": {
+      const projectId = data.ProjectId.codec.decode(0, binary).result;
+      const projectMaybe = await lib.getProjectSnapshot(projectId);
+      return data.Maybe.codec(data.ProjectSnapshot.codec).encode(projectMaybe);
+    }
     case "getIdea": {
-      const ideaId = common.data.decodeId(0, binary)
-        .result as common.data.IdeaId;
+      const ideaId = data.IdeaId.codec.decode(0, binary).result;
       const ideaMaybe = await lib.getIdea(ideaId);
-      return common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(ideaMaybe);
+      return data.Maybe.codec(data.IdeaSnapshot.codec).encode(ideaMaybe);
     }
     case "getIdeaAndIdListByProjectId": {
-      const projectId = common.data.decodeId(0, binary)
-        .result as common.data.ProjectId;
+      const projectId = data.ProjectId.codec.decode(0, binary).result;
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
         projectId
       );
-      return common.data.encodeList(common.data.encodeIdeaSnapshotAndId)(
+      return data.List.codec(data.IdeaSnapshotAndId.codec).encode(
         ideaSnapshotAndIdList
       );
     }
     case "createIdea": {
-      const createIdeaParameter = common.data.decodeCreateIdeaParameter(
+      const createIdeaParameter = data.CreateIdeaParameter.codec.decode(
         0,
         binary
       ).result;
       const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return common.data.encodeMaybe(common.data.encodeIdeaSnapshotAndId)(
+      return data.Maybe.codec(data.IdeaSnapshotAndId.codec).encode(
         ideaSnapshotAndIdMaybe
       );
     }
     case "addComment": {
-      const addCommentParameter = common.data.decodeAddCommentParameter(
+      const addCommentParameter = data.AddCommentParameter.codec.decode(
         0,
         binary
       ).result;
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return common.data.encodeMaybe(common.data.encodeIdeaSnapshot)(
+      return data.Maybe.codec(data.IdeaSnapshot.codec).encode(
         ideaSnapshotMaybe
       );
     }
     case "getSuggestion": {
-      const suggestionId = common.data.decodeId(0, binary)
-        .result as common.data.SuggestionId;
+      const suggestionId = data.SuggestionId.codec.decode(0, binary).result;
       const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+      return data.Maybe.codec(data.SuggestionSnapshot.codec).encode(
         suggestionMaybe
       );
     }
     case "addSuggestion": {
-      const addSuggestionParameter = common.data.decodeAddSuggestionParameter(
+      const addSuggestionParameter = data.AddSuggestionParameter.codec.decode(
         0,
         binary
       ).result;
       const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
         addSuggestionParameter
       );
-      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshotAndId)(
+      return data.Maybe.codec(data.SuggestionSnapshotAndId.codec).encode(
         suggestionSnapshotAndIdMaybe
       );
     }
     case "updateSuggestion": {
-      const updateSuggestionParameter = common.data.decodeUpdateSuggestionParameter(
+      const updateSuggestionParameter = data.UpdateSuggestionParameter.codec.decode(
         0,
         binary
       ).result;
       const suggestionMaybe = await lib.updateSuggestion(
         updateSuggestionParameter
       );
-      return common.data.encodeMaybe(common.data.encodeSuggestionSnapshot)(
+      return data.Maybe.codec(data.SuggestionSnapshot.codec).encode(
         suggestionMaybe
       );
     }
@@ -374,10 +370,10 @@ export const logInCallback = functions.https.onRequest((request, response) => {
         .urlDataAndAccessTokenToUrl(
           {
             clientMode: "Release",
-            location: common.data.locationHome,
+            location: data.Location.Home,
             language: common.defaultLanguage,
           },
-          common.data.maybeNothing()
+          data.Maybe.Nothing()
         )
         .toString()
     );
@@ -392,7 +388,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
           common
             .urlDataAndAccessTokenToUrl(
               result.urlData,
-              common.data.maybeJust(result.accessToken)
+              data.Maybe.Just(result.accessToken)
             )
             .toString()
         );
@@ -409,6 +405,6 @@ export const getFile = functions.https.onRequest(async (request, response) => {
     return;
   }
   lib
-    .getReadableStream(request.path.split("/")[1] as common.data.ImageToken)
+    .getReadableStream(request.path.split("/")[1] as data.ImageToken)
     .pipe(response);
 });
