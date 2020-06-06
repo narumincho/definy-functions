@@ -253,6 +253,11 @@ const callApiFunction = async (
         await lib.getAllProjectId()
       );
     }
+    case "getAllProject": {
+      return data.List.codec(data.ProjectSnapshotAndId.codec).encode(
+        await lib.getAllProjectSnapshot()
+      );
+    }
     case "getProject": {
       const projectId = data.ProjectId.codec.decode(0, binary).result;
       const projectMaybe = await lib.getProjectSnapshot(projectId);

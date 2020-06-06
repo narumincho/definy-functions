@@ -11,6 +11,7 @@ import * as stream from "stream";
 import * as sharp from "sharp";
 import * as image from "./image";
 import * as tokenize from "./tokenize";
+import { ProjectSnapshot } from "definy-common/source/data";
 
 const app = admin.initializeApp();
 
@@ -721,6 +722,30 @@ export const getAllProjectId = async (): Promise<
   return list;
 };
 
+export const getAllProjectSnapshot = async (): Promise<
+  ReadonlyArray<data.ProjectSnapshotAndId>
+> => {
+  const querySnapshot: typedFirestore.QuerySnapshot<
+    common.data.ProjectId,
+    ProjectData
+  > = await database.collection("project").get();
+  const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
+    data.ProjectId,
+    ProjectData
+  >> = querySnapshot.docs;
+  const resultList: Array<data.ProjectSnapshotAndId> = [];
+  for (const document of documentList) {
+    resultList.push({
+      id: document.id,
+      snapshot: projectDataToProjectSnapshot(
+        document.data(),
+        common.util.timeFromDate(new Date())
+      ),
+    });
+  }
+  return resultList;
+};
+
 /**
  * プロジェクトのスナップショットを取得する.
  * Nothingだった場合は指定したIDのプロジェクトがなかったということ
@@ -735,18 +760,25 @@ export const getProjectSnapshot = async (
   if (document === undefined) {
     return data.Maybe.Nothing();
   }
-  return data.Maybe.Just<data.ProjectSnapshot>({
-    name: document.name,
-    iconHash: document.iconHash,
-    imageHash: document.imageHash,
-    createTime: firestoreTimestampToTime(document.createTime),
-    createUserId: document.createUserId,
-    getTime: common.util.timeFromDate(new Date()),
-    updateTime: firestoreTimestampToTime(document.updateTime),
-    partIdList: document.partIdList,
-    typePartIdList: document.typePartIdList,
-  });
+  return data.Maybe.Just<data.ProjectSnapshot>(
+    projectDataToProjectSnapshot(document, common.util.timeFromDate(new Date()))
+  );
 };
+
+const projectDataToProjectSnapshot = (
+  document: ProjectData,
+  time: data.Time
+): ProjectSnapshot => ({
+  name: document.name,
+  iconHash: document.iconHash,
+  imageHash: document.imageHash,
+  createTime: firestoreTimestampToTime(document.createTime),
+  createUserId: document.createUserId,
+  getTime: time,
+  updateTime: firestoreTimestampToTime(document.updateTime),
+  partIdList: document.partIdList,
+  typePartIdList: document.typePartIdList,
+});
 
 export const createIdea = async (
   createIdeaParameter: data.CreateIdeaParameter
