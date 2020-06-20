@@ -208,6 +208,9 @@ const callApiFunction = async (
   binary: Uint8Array
 ): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
+    case "checkConnection": {
+      return data.String.codec.encode("ok");
+    }
     case "requestLogInUrl": {
       const requestData = data.RequestLogInUrlRequestData.codec.decode(
         0,
