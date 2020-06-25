@@ -8,7 +8,7 @@ import * as functions from "firebase-functions";
 import axios, { AxiosResponse } from "axios";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
-import * as sharp from "sharp";
+import * as canvas from "canvas";
 import * as image from "./image";
 import * as tokenize from "./tokenize";
 
@@ -502,14 +502,15 @@ const createUser = async (
 };
 
 const getAndSaveUserImage = async (imageUrl: URL): Promise<data.ImageToken> => {
+  const canvasInstance = canvas.createCanvas(64, 64);
+  const context = canvasInstance.getContext("2d");
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer",
   });
-  const resizedImageBuffer = await sharp(response.data)
-    .resize(64, 64, { fit: "inside" })
-    .png()
-    .toBuffer();
-  return await savePngFile(resizedImageBuffer);
+  const canvasImage = await canvas.loadImage(response.data);
+  context.drawImage(canvasImage, 0, 0, 64, 64);
+
+  return await savePngFile(canvasInstance.toBuffer("image/png"));
 };
 
 /**
