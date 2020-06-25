@@ -8,7 +8,7 @@ import * as functions from "firebase-functions";
 import axios, { AxiosResponse } from "axios";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
-import * as canvas from "canvas";
+import * as jimp from "jimp";
 import * as image from "./image";
 import * as tokenize from "./tokenize";
 
@@ -502,15 +502,14 @@ const createUser = async (
 };
 
 const getAndSaveUserImage = async (imageUrl: URL): Promise<data.ImageToken> => {
-  const canvasInstance = canvas.createCanvas(64, 64);
-  const context = canvasInstance.getContext("2d");
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer",
   });
-  const canvasImage = await canvas.loadImage(response.data);
-  context.drawImage(canvasImage, 0, 0, 64, 64);
-
-  return await savePngFile(canvasInstance.toBuffer("image/png"));
+  return await savePngFile(
+    await (await jimp.create(response.data))
+      .resize(64, 64)
+      .getBufferAsync("image/ong")
+  );
 };
 
 /**
@@ -658,10 +657,10 @@ export const createProject = async (
         normalizedProjectName === null ? "?" : normalizedProjectName;
       const projectId = createRandomId() as data.ProjectId;
       const iconHash = savePngFile(
-        image.createProjectIconFromChar(projectNameWithDefault[0])
+        await image.createProjectIconFromChar(projectNameWithDefault[0])
       );
       const imageHash = savePngFile(
-        image.createProjectImage(projectNameWithDefault)
+        await image.createProjectImage(projectNameWithDefault)
       );
       const createTime = admin.firestore.Timestamp.now();
       const createTimeAsTime = firestoreTimestampToTime(createTime);

@@ -4,6 +4,7 @@ import { URL } from "url";
 import * as common from "definy-common";
 import { data } from "definy-common";
 import * as lib from "./lib";
+import { spawnSync } from "child_process";
 
 /* =====================================================================
  *               Index Html ブラウザが最初にリクエストするところ
@@ -309,6 +310,9 @@ const callApiFunction = async (
       );
       return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
     }
+    case "fontList":
+      spawnSync("convert", ["-list", "font"]);
+      return [];
   }
 };
 
