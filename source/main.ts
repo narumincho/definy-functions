@@ -175,6 +175,11 @@ export const api = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }
+  if (request.path === "/fontList") {
+    const result = spawnSync("convert", ["-list", "font"]);
+    response.send(result.stdout);
+    return;
+  }
   const result = await callApiFunction(
     request.path.split("/")[1],
     request.body as Buffer
@@ -310,9 +315,6 @@ const callApiFunction = async (
       );
       return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
     }
-    case "fontList":
-      spawnSync("convert", ["-list", "font"]);
-      return [];
   }
 };
 
