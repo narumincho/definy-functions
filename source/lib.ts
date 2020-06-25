@@ -11,7 +11,6 @@ import * as stream from "stream";
 import * as sharp from "sharp";
 import * as image from "./image";
 import * as tokenize from "./tokenize";
-import { ProjectSnapshot } from "definy-common/source/data";
 
 const app = admin.initializeApp();
 
@@ -590,7 +589,7 @@ const hashAccessToken = (accessToken: data.AccessToken): AccessTokenHash =>
 
 export const getUserByAccessToken = async (
   accessToken: data.AccessToken
-): Promise<data.Maybe<data.UserSnapshotAndId>> => {
+): Promise<data.Maybe<data.IdAndData<data.UserId, data.User>>> => {
   const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
   const userDataDocs = (
     await database
@@ -604,9 +603,9 @@ export const getUserByAccessToken = async (
   const queryDocumentSnapshot = userDataDocs[0];
   const userData = queryDocumentSnapshot.data();
 
-  return data.Maybe.Just<data.UserSnapshotAndId>({
+  return data.Maybe.Just<data.IdAndData<data.UserId, data.User>>({
     id: queryDocumentSnapshot.id as data.UserId,
-    snapshot: {
+    data: {
       name: userData.name,
       imageHash: userData.imageHash,
       introduction: userData.introduction,
@@ -626,7 +625,7 @@ export const getUserByAccessToken = async (
  */
 export const getUserSnapshot = async (
   userId: data.UserId
-): Promise<data.Maybe<data.UserSnapshot>> => {
+): Promise<data.Maybe<data.User>> => {
   const userData = (await database.collection("user").doc(userId).get()).data();
   if (userData === undefined) {
     return data.Maybe.Nothing();
@@ -646,7 +645,7 @@ export const getUserSnapshot = async (
 export const createProject = async (
   accessToken: data.AccessToken,
   projectName: string
-): Promise<data.Maybe<data.ProjectSnapshotAndId>> => {
+): Promise<data.Maybe<data.IdAndData<data.ProjectId, data.Project>>> => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   switch (userDataMaybe._) {
     case "Just": {
@@ -678,9 +677,9 @@ export const createProject = async (
       };
 
       database.collection("project").doc(projectId).create(project);
-      return data.Maybe.Just<data.ProjectSnapshotAndId>({
+      return data.Maybe.Just<data.IdAndData<data.ProjectId, data.Project>>({
         id: projectId,
-        snapshot: {
+        data: {
           name: project.name,
           iconHash: project.iconHash,
           imageHash: project.imageHash,
@@ -723,7 +722,7 @@ export const getAllProjectId = async (): Promise<
 };
 
 export const getAllProjectSnapshot = async (): Promise<
-  ReadonlyArray<data.ProjectSnapshotAndId>
+  ReadonlyArray<data.IdAndData<data.ProjectId, data.Project>>
 > => {
   const querySnapshot: typedFirestore.QuerySnapshot<
     common.data.ProjectId,
@@ -733,11 +732,11 @@ export const getAllProjectSnapshot = async (): Promise<
     data.ProjectId,
     ProjectData
   >> = querySnapshot.docs;
-  const resultList: Array<data.ProjectSnapshotAndId> = [];
+  const resultList: Array<data.IdAndData<data.ProjectId, data.Project>> = [];
   for (const document of documentList) {
     resultList.push({
       id: document.id,
-      snapshot: projectDataToProjectSnapshot(
+      data: projectDataToProjectSnapshot(
         document.data(),
         common.util.timeFromDate(new Date())
       ),
@@ -753,14 +752,14 @@ export const getAllProjectSnapshot = async (): Promise<
  */
 export const getProjectSnapshot = async (
   projectId: data.ProjectId
-): Promise<data.Maybe<data.ProjectSnapshot>> => {
+): Promise<data.Maybe<data.Project>> => {
   const document = (
     await database.collection("project").doc(projectId).get()
   ).data();
   if (document === undefined) {
     return data.Maybe.Nothing();
   }
-  return data.Maybe.Just<data.ProjectSnapshot>(
+  return data.Maybe.Just<data.Project>(
     projectDataToProjectSnapshot(document, common.util.timeFromDate(new Date()))
   );
 };
@@ -768,7 +767,7 @@ export const getProjectSnapshot = async (
 const projectDataToProjectSnapshot = (
   document: ProjectData,
   time: data.Time
-): ProjectSnapshot => ({
+): data.Project => ({
   name: document.name,
   iconHash: document.iconHash,
   imageHash: document.imageHash,
@@ -782,7 +781,7 @@ const projectDataToProjectSnapshot = (
 
 export const createIdea = async (
   createIdeaParameter: data.CreateIdeaParameter
-): Promise<data.Maybe<data.IdeaSnapshotAndId>> => {
+): Promise<data.Maybe<data.IdAndData<data.IdeaId, data.Idea>>> => {
   const userDataMaybe = await getUserByAccessToken(
     createIdeaParameter.accessToken
   );
@@ -820,7 +819,7 @@ export const createIdea = async (
   await database.collection("idea").doc(ideaId).create(ideaData);
   return data.Maybe.Just({
     id: ideaId,
-    snapshot: ideaDocumentToIdeaSnapshot(
+    data: ideaDocumentToIdeaSnapshot(
       ideaData,
       firestoreTimestampToTime(createTime)
     ),
@@ -829,7 +828,7 @@ export const createIdea = async (
 
 export const getIdea = async (
   ideaId: data.IdeaId
-): Promise<data.Maybe<data.IdeaSnapshot>> => {
+): Promise<data.Maybe<data.Idea>> => {
   const document = (await database.collection("idea").doc(ideaId).get()).data();
   if (document === undefined) {
     return data.Maybe.Nothing();
@@ -841,18 +840,18 @@ export const getIdea = async (
 
 export const getIdeaSnapshotAndIdListByProjectId = async (
   projectId: data.ProjectId
-): Promise<ReadonlyArray<data.IdeaSnapshotAndId>> => {
+): Promise<ReadonlyArray<data.IdAndData<data.IdeaId, data.Idea>>> => {
   const querySnapshot = await database
     .collection("idea")
     .where("projectId", "==", projectId)
     .get();
-  const list: Array<data.IdeaSnapshotAndId> = [];
+  const list: Array<data.IdAndData<data.IdeaId, data.Idea>> = [];
   const getTime = common.util.timeFromDate(new Date());
   for (const document of querySnapshot.docs) {
     const documentValue = document.data();
     list.push({
       id: document.id,
-      snapshot: ideaDocumentToIdeaSnapshot(documentValue, getTime),
+      data: ideaDocumentToIdeaSnapshot(documentValue, getTime),
     });
   }
   console.log("getIdeaSnapshotAndIdListByProjectId output");
@@ -863,7 +862,7 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
 const ideaDocumentToIdeaSnapshot = (
   ideaDocument: IdeaData,
   getTime: common.data.Time
-): data.IdeaSnapshot => ({
+): data.Idea => ({
   name: ideaDocument.name,
   createUserId: ideaDocument.createUserId,
   projectId: ideaDocument.projectId,
@@ -877,7 +876,7 @@ export const addComment = async ({
   accessToken,
   comment,
   ideaId,
-}: data.AddCommentParameter): Promise<data.Maybe<data.IdeaSnapshot>> => {
+}: data.AddCommentParameter): Promise<data.Maybe<data.Idea>> => {
   const validComment = common.stringToValidComment(comment);
   if (validComment === null) {
     return data.Maybe.Nothing();
@@ -933,7 +932,7 @@ const ideaGetText = (ideaData: IdeaData): string => {
 
 export const getSuggestion = async (
   suggestionId: data.SuggestionId
-): Promise<data.Maybe<data.SuggestionSnapshot>> => {
+): Promise<data.Maybe<data.Suggestion>> => {
   const document = (
     await database.collection("suggestion").doc(suggestionId).get()
   ).data();
@@ -957,7 +956,7 @@ export const addSuggestion = async ({
   accessToken,
   ideaId,
 }: data.AddSuggestionParameter): Promise<
-  data.Maybe<data.SuggestionSnapshotAndId>
+  data.Maybe<data.IdAndData<data.SuggestionId, data.Suggestion>>
 > => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   if (userDataMaybe._ === "Nothing") {
@@ -999,7 +998,7 @@ export const addSuggestion = async ({
 
   return data.Maybe.Just({
     id: suggestionId,
-    snapshot: {
+    data: {
       name: suggestionData.name,
       reason: suggestionData.reason,
       changeList: suggestionData.changeList,
@@ -1019,9 +1018,7 @@ export const updateSuggestion = async ({
   reason,
   changeList,
   suggestionId,
-}: data.UpdateSuggestionParameter): Promise<
-  data.Maybe<data.SuggestionSnapshot>
-> => {
+}: data.UpdateSuggestionParameter): Promise<data.Maybe<data.Suggestion>> => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
   if (userDataMaybe._ === "Nothing") {
     return data.Maybe.Nothing();

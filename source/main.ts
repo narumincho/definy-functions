@@ -108,24 +108,18 @@ const englishDescription = (location: data.Location): string => {
       return "Definy is Web App for Web App.";
     case "CreateProject":
       return "Project creation page";
-    case "CreateIdea":
-      return "Idea creation page. projectId=" + (location.projectId as string);
     case "Project":
       return "Project page id=" + (location.projectId as string);
     case "User":
       return "User page id=" + (location.userId as string);
-    case "UserList":
-      return "UserList page";
     case "Idea":
       return "Idea page id=" + (location.ideaId as string);
     case "Suggestion":
       return "suggestion page id=" + (location.suggestionId as string);
-    case "PartList":
-      return "Part list page";
-    case "TypePartList":
-      return "TypePart List page";
     case "About":
       return "About";
+    case "Debug":
+      return "Debug";
   }
 };
 
@@ -135,24 +129,18 @@ const japaneseDescription = (location: data.Location): string => {
       return "ブラウザで動作する革新的なプログラミング言語!";
     case "CreateProject":
       return "プロジェクト作成ページ";
-    case "CreateIdea":
-      return "アイデアの作成ページ";
     case "Project":
       return "プロジェクト id=" + (location.projectId as string);
     case "User":
       return "ユーザー id=" + (location.userId as string);
-    case "UserList":
-      return "ユーザー一覧ページ";
     case "Idea":
       return "アイデア id=" + (location.ideaId as string);
     case "Suggestion":
       return "提案 id=" + (location.suggestionId as string);
-    case "PartList":
-      return "パーツの一覧ページ";
-    case "TypePartList":
-      return "型パーツの一覧ページ";
     case "About":
       return "Definyについて";
+    case "Debug":
+      return "Debugページ";
   }
 };
 
@@ -162,24 +150,18 @@ const esperantoDescription = (location: data.Location): string => {
       return "Noviga programlingvo, kiu funkcias en la retumilo";
     case "CreateProject":
       return "Projekto kreo de paĝo";
-    case "CreateIdea":
-      return "Ideo kreo de paĝo";
     case "Project":
       return "projektopaĝo id=" + (location.projectId as string);
     case "User":
       return "uzantopaĝo id=" + (location.userId as string);
-    case "UserList":
-      return "Uzantlisto paĝo";
     case "Idea":
       return "Ideopaĝo id=" + (location.ideaId as string);
     case "Suggestion":
       return "sugestapaĝo id=" + (location.suggestionId as string);
-    case "PartList":
-      return "partolisto paĝo";
-    case "TypePartList":
-      return "Tajpu parto paĝo";
     case "About":
       return "pri paĝo";
+    case "Debug":
+      return "elpurigi paĝo";
   }
 };
 
@@ -220,7 +202,9 @@ const callApiFunction = async (
       return data.String.codec.encode(url.toString());
     }
     case "getUserByAccessToken": {
-      return data.Maybe.codec(data.UserSnapshotAndId.codec).encode(
+      return data.Maybe.codec(
+        data.IdAndData.codec(data.UserId.codec, data.User.codec)
+      ).encode(
         await lib.getUserByAccessToken(
           data.AccessToken.codec.decode(0, binary).result
         )
@@ -230,7 +214,7 @@ const callApiFunction = async (
       const userData = await lib.getUserSnapshot(
         data.UserId.codec.decode(0, binary).result
       );
-      return data.Maybe.codec(data.UserSnapshot.codec).encode(userData);
+      return data.Maybe.codec(data.User.codec).encode(userData);
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
@@ -247,9 +231,9 @@ const callApiFunction = async (
         createProjectParameter.accessToken,
         createProjectParameter.projectName
       );
-      return data.Maybe.codec(data.ProjectSnapshotAndId.codec).encode(
-        newProject
-      );
+      return data.Maybe.codec(
+        data.IdAndData.codec(data.ProjectId.codec, data.Project.codec)
+      ).encode(newProject);
     }
     case "getAllProjectId": {
       return data.List.codec(data.ProjectId.codec).encode(
@@ -257,28 +241,28 @@ const callApiFunction = async (
       );
     }
     case "getAllProject": {
-      return data.List.codec(data.ProjectSnapshotAndId.codec).encode(
-        await lib.getAllProjectSnapshot()
-      );
+      return data.List.codec(
+        data.IdAndData.codec(data.ProjectId.codec, data.Project.codec)
+      ).encode(await lib.getAllProjectSnapshot());
     }
     case "getProject": {
       const projectId = data.ProjectId.codec.decode(0, binary).result;
       const projectMaybe = await lib.getProjectSnapshot(projectId);
-      return data.Maybe.codec(data.ProjectSnapshot.codec).encode(projectMaybe);
+      return data.Maybe.codec(data.Project.codec).encode(projectMaybe);
     }
     case "getIdea": {
       const ideaId = data.IdeaId.codec.decode(0, binary).result;
       const ideaMaybe = await lib.getIdea(ideaId);
-      return data.Maybe.codec(data.IdeaSnapshot.codec).encode(ideaMaybe);
+      return data.Maybe.codec(data.Idea.codec).encode(ideaMaybe);
     }
     case "getIdeaAndIdListByProjectId": {
       const projectId = data.ProjectId.codec.decode(0, binary).result;
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
         projectId
       );
-      return data.List.codec(data.IdeaSnapshotAndId.codec).encode(
-        ideaSnapshotAndIdList
-      );
+      return data.List.codec(
+        data.IdAndData.codec(data.IdeaId.codec, data.Idea.codec)
+      ).encode(ideaSnapshotAndIdList);
     }
     case "createIdea": {
       const createIdeaParameter = data.CreateIdeaParameter.codec.decode(
@@ -286,9 +270,9 @@ const callApiFunction = async (
         binary
       ).result;
       const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return data.Maybe.codec(data.IdeaSnapshotAndId.codec).encode(
-        ideaSnapshotAndIdMaybe
-      );
+      return data.Maybe.codec(
+        data.IdAndData.codec(data.IdeaId.codec, data.Idea.codec)
+      ).encode(ideaSnapshotAndIdMaybe);
     }
     case "addComment": {
       const addCommentParameter = data.AddCommentParameter.codec.decode(
@@ -296,16 +280,12 @@ const callApiFunction = async (
         binary
       ).result;
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return data.Maybe.codec(data.IdeaSnapshot.codec).encode(
-        ideaSnapshotMaybe
-      );
+      return data.Maybe.codec(data.Idea.codec).encode(ideaSnapshotMaybe);
     }
     case "getSuggestion": {
       const suggestionId = data.SuggestionId.codec.decode(0, binary).result;
       const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return data.Maybe.codec(data.SuggestionSnapshot.codec).encode(
-        suggestionMaybe
-      );
+      return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
     }
     case "addSuggestion": {
       const addSuggestionParameter = data.AddSuggestionParameter.codec.decode(
@@ -315,9 +295,9 @@ const callApiFunction = async (
       const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
         addSuggestionParameter
       );
-      return data.Maybe.codec(data.SuggestionSnapshotAndId.codec).encode(
-        suggestionSnapshotAndIdMaybe
-      );
+      return data.Maybe.codec(
+        data.IdAndData.codec(data.SuggestionId.codec, data.Suggestion.codec)
+      ).encode(suggestionSnapshotAndIdMaybe);
     }
     case "updateSuggestion": {
       const updateSuggestionParameter = data.UpdateSuggestionParameter.codec.decode(
@@ -327,9 +307,7 @@ const callApiFunction = async (
       const suggestionMaybe = await lib.updateSuggestion(
         updateSuggestionParameter
       );
-      return data.Maybe.codec(data.SuggestionSnapshot.codec).encode(
-        suggestionMaybe
-      );
+      return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
     }
   }
 };
