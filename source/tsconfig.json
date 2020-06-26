@@ -6,7 +6,7 @@
     "strict": true,
     "removeComments": true,
     "newLine": "LF",
-    "outDir": "distribution",
+    "outDir": "../distribution",
     "forceConsistentCasingInFileNames": true
   }
 }
