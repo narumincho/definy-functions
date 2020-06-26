@@ -4,7 +4,6 @@ import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
 import * as lib from "./lib";
 import { URL } from "url";
-import { spawnSync } from "child_process";
 
 /*
  * =====================================================================
@@ -175,11 +174,6 @@ const esperantoDescription = (location: data.Location): string => {
  */
 export const api = functions.https.onRequest(async (request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
-    return;
-  }
-  if (request.path === "/fontList") {
-    const result = spawnSync("convert", ["-list", "font"]);
-    response.send(result.stdout);
     return;
   }
   const result = await callApiFunction(

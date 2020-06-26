@@ -10,7 +10,7 @@
   },
   "license": "Apache-2.0",
   "engines": {
-    "node": "12"
+    "node": "10"
   },
   "dependencies": {
     "@narumincho/html": "0.1.1",
