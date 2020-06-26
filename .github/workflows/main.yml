@@ -19,7 +19,7 @@ jobs:
       - name: Install npm dependencies (npm ci)
         run: npm ci
       - name: Transpile TypeScript (npx tsc)
-        run: npx tsc
+        run: npx tsc --project source/tsconfig.json
       - name: deploy functions to firebase
         uses: w9jds/firebase-action@master
         with:

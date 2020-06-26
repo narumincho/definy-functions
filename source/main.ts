@@ -1,12 +1,13 @@
+import * as common from "definy-common";
+import * as data from "definy-common/source/data";
 import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
-import { URL } from "url";
-import * as common from "definy-common";
-import { data } from "definy-common";
 import * as lib from "./lib";
+import { URL } from "url";
 import { spawnSync } from "child_process";
 
-/* =====================================================================
+/*
+ * =====================================================================
  *               Index Html ブラウザが最初にリクエストするところ
  *
  *          https://definy-lang.web.app/ など
@@ -166,7 +167,8 @@ const esperantoDescription = (location: data.Location): string => {
   }
 };
 
-/* =====================================================================
+/*
+ * =====================================================================
  *               Api データを取得したり変更したりする
  *    https://us-central1-definy-lang.cloudfunctions.net/api
  * =====================================================================
@@ -329,7 +331,7 @@ const supportCrossOriginResourceSharing = (
   response.setHeader("vary", "Origin");
   response.setHeader(
     "access-control-allow-origin",
-    allowOrigin(request.headers["origin"])
+    allowOrigin(request.headers.origin)
   );
   if (request.method === "OPTIONS") {
     response.setHeader("access-control-allow-methods", "POST, GET, OPTIONS");
@@ -392,7 +394,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
   }
 });
 
-export const getFile = functions.https.onRequest(async (request, response) => {
+export const getFile = functions.https.onRequest((request, response) => {
   if (supportCrossOriginResourceSharing(request, response)) {
     return;
   }

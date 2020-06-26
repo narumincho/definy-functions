@@ -1,16 +1,16 @@
-import * as common from "definy-common";
-import { data } from "definy-common";
-import { URL } from "url";
 import * as admin from "firebase-admin";
-import type * as typedFirestore from "typed-admin-firestore";
+import * as common from "definy-common";
 import * as crypto from "crypto";
+import * as data from "definy-common/source/data";
 import * as functions from "firebase-functions";
-import axios, { AxiosResponse } from "axios";
+import * as image from "./image";
+import * as jimp from "jimp";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
-import * as jimp from "jimp";
-import * as image from "./image";
 import * as tokenize from "./tokenize";
+import type * as typedFirestore from "typed-admin-firestore";
+import axios, { AxiosResponse } from "axios";
+import { URL } from "url";
 
 const app = admin.initializeApp();
 
@@ -65,7 +65,8 @@ type StateData = {
  * 登録してくれたユーザー
  */
 type UserData = {
-  /** ユーザー名
+  /**
+   * ユーザー名
    * 表示される名前。他のユーザーとかぶっても良い。絵文字も使える
    * 全角英数は半角英数、半角カタカナは全角カタカナ、(株)の合字を分解するなどのNFKCの正規化がされる
    * U+0000-U+0019 と U+007F-U+00A0 の範囲の文字は入らない
@@ -319,7 +320,7 @@ export const logInCallback = async (
     );
     return {
       urlData: stateData.urlData,
-      accessToken: accessToken,
+      accessToken,
     };
   }
   const userQueryDocumentSnapshot = documentList[0];
@@ -341,7 +342,7 @@ type ProviderUserData = {
   imageUrl: URL;
 };
 
-const getUserDataFromCode = async (
+const getUserDataFromCode = (
   openIdConnectProvider: data.OpenIdConnectProvider,
   code: string
 ): Promise<ProviderUserData> => {
@@ -422,7 +423,7 @@ const getGitHubUserDataFromCode = async (
       }
     )
   ).data;
-  const accessToken: unknown = responseData["access_token"];
+  const accessToken: unknown = responseData.access_token;
   if (typeof accessToken !== "string") {
     console.error("GitHubからアクセストークンを取得できなかった", responseData);
     throw new Error("LogInError: GitHub Oauth response is invalid");
@@ -467,8 +468,8 @@ viewer {
     throw new Error("LogInError: GitHub API response is invalid");
   }
   return {
-    id: id,
-    name: name,
+    id,
+    name,
     imageUrl: new URL(avatarUrl),
   };
 };
@@ -486,16 +487,16 @@ const createUser = async (
     .create({
       name: providerUserData.name,
       commentedIdeaIdList: [],
-      createdAt: createdAt,
+      createdAt,
       developedProjectIdList: [],
-      imageHash: imageHash,
+      imageHash,
       introduction: "",
       accessTokenHash: accessTokenData.accessTokenHash,
       accessTokenIssueTime: accessTokenData.issueTime,
       likedProjectIdList: [],
       openIdConnect: {
         idInProvider: providerUserData.id,
-        provider: provider,
+        provider,
       },
     });
   return accessTokenData.accessToken;
@@ -505,7 +506,7 @@ const getAndSaveUserImage = async (imageUrl: URL): Promise<data.ImageToken> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer",
   });
-  return await savePngFile(
+  return savePngFile(
     await (await jimp.create(response.data))
       .resize(64, 64)
       .getBufferAsync("image/ong")
@@ -515,7 +516,7 @@ const getAndSaveUserImage = async (imageUrl: URL): Promise<data.ImageToken> => {
 /**
  * Firebase Cloud Storage にPNGファイルを保存する
  */
-const savePngFile = async (buffer: Buffer): Promise<data.ImageToken> =>
+const savePngFile = (buffer: Buffer): Promise<data.ImageToken> =>
   saveFile(buffer, "image/png");
 
 /**
@@ -532,12 +533,12 @@ const saveFile = async (
 };
 
 export const createHashFromBuffer = (
-  data: Buffer,
+  buffer: Buffer,
   mimeType: string
 ): data.ImageToken =>
   crypto
     .createHash("sha256")
-    .update(data)
+    .update(buffer)
     .update(mimeType, "utf8")
     .digest("hex") as data.ImageToken;
 
@@ -547,7 +548,7 @@ export const createHashFromBuffer = (
 const getOpenIdConnectClientSecret = (
   openIdConnectProvider: data.OpenIdConnectProvider
 ): string => {
-  return functions.config()["openidconnectclientsecret"][
+  return functions.config().openidconnectclientsecret[
     openIdConnectProvider.toLowerCase()
   ];
 };
@@ -575,7 +576,7 @@ const issueAccessToken = (): {
     .randomBytes(32)
     .toString("hex") as data.AccessToken;
   return {
-    accessToken: accessToken,
+    accessToken,
     accessTokenHash: hashAccessToken(accessToken),
     issueTime: admin.firestore.Timestamp.now(),
   };
@@ -669,7 +670,7 @@ export const createProject = async (
         iconHash: await iconHash,
         imageHash: await imageHash,
         createUserId: userData.id,
-        createTime: createTime,
+        createTime,
         updateTime: createTime,
         partIdList: [],
         typePartIdList: [],
@@ -811,7 +812,7 @@ export const createIdea = async (
     name: validIdeaName,
     createUserId: userDataMaybe.value.id,
     projectId: createIdeaParameter.projectId,
-    createTime: createTime,
+    createTime,
     itemList: [],
     updateTime: createTime,
     tagList: await tokenize.tokenize(validIdeaName),
@@ -869,7 +870,7 @@ const ideaDocumentToIdeaSnapshot = (
   createTime: firestoreTimestampToTime(ideaDocument.createTime),
   itemList: ideaDocument.itemList,
   updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
-  getTime: getTime,
+  getTime,
 });
 
 export const addComment = async ({
@@ -976,7 +977,7 @@ export const addSuggestion = async ({
     createUserId: userData.id,
     projectId: ideaData.projectId,
     changeList: [],
-    ideaId: ideaId,
+    ideaId,
     updateTime: admin.firestore.Timestamp.fromDate(nowTime),
     state: "Creating",
   };
@@ -1036,14 +1037,14 @@ export const updateSuggestion = async ({
     return data.Maybe.Nothing();
   }
   await database.collection("suggestion").doc(suggestionId).update({
-    name: name,
-    reason: reason,
-    changeList: changeList,
+    name,
+    reason,
+    changeList,
   });
   return data.Maybe.Just({
-    name: name,
-    reason: reason,
-    changeList: changeList,
+    name,
+    reason,
+    changeList,
     createUserId: suggestion.createUserId,
     ideaId: suggestion.ideaId,
     state: suggestion.state,

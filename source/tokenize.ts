@@ -1,12 +1,10 @@
 import * as kuromozi from "kuromoji";
 
-let tokenizerCache:
-  | undefined
-  | kuromozi.Tokenizer<kuromozi.IpadicFeatures> = undefined;
+let tokenizerCache: null | kuromozi.Tokenizer<kuromozi.IpadicFeatures> = null;
 
 export const tokenize = (text: string): Promise<ReadonlyArray<string>> =>
   new Promise((resolve, reject) => {
-    if (tokenizerCache !== undefined) {
+    if (tokenizerCache !== null) {
       resolve(getNounList(tokenizerCache, text));
       return;
     }
