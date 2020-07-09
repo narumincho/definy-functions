@@ -3,7 +3,7 @@ name: build and deploy functions
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-and-deploy:
@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@master
+        uses: actions/checkout@v2
       - name: setup Node.js
-        uses: actions/setup-node@master
+        uses: actions/setup-node@v1
         with:
           node-version: "10.x"
       - name: Install npm dependencies (npm ci)
