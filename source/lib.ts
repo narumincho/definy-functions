@@ -615,7 +615,7 @@ export const getUserByAccessToken = async (
       createTime: firestoreTimestampToTime(userData.createdAt),
       developProjectIdList: userData.developedProjectIdList,
       likeProjectIdList: userData.likedProjectIdList,
-      getTime: common.util.timeFromDate(new Date()),
+      getTime: util.timeFromDate(new Date()),
     },
   });
 };
@@ -640,7 +640,7 @@ export const getUserSnapshot = async (
     createTime: firestoreTimestampToTime(userData.createdAt),
     developProjectIdList: userData.developedProjectIdList,
     likeProjectIdList: userData.likedProjectIdList,
-    getTime: common.util.timeFromDate(new Date()),
+    getTime: util.timeFromDate(new Date()),
   });
 };
 
@@ -727,7 +727,7 @@ export const getAllProjectSnapshot = async (): Promise<
   ReadonlyArray<data.IdAndData<data.ProjectId, data.Project>>
 > => {
   const querySnapshot: typedFirestore.QuerySnapshot<
-    common.data.ProjectId,
+    data.ProjectId,
     ProjectData
   > = await database.collection("project").get();
   const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
@@ -740,7 +740,7 @@ export const getAllProjectSnapshot = async (): Promise<
       id: document.id,
       data: projectDataToProjectSnapshot(
         document.data(),
-        common.util.timeFromDate(new Date())
+        util.timeFromDate(new Date())
       ),
     });
   }
@@ -762,7 +762,7 @@ export const getProjectSnapshot = async (
     return data.Maybe.Nothing();
   }
   return data.Maybe.Just<data.Project>(
-    projectDataToProjectSnapshot(document, common.util.timeFromDate(new Date()))
+    projectDataToProjectSnapshot(document, util.timeFromDate(new Date()))
   );
 };
 
@@ -836,7 +836,7 @@ export const getIdea = async (
     return data.Maybe.Nothing();
   }
   return data.Maybe.Just(
-    ideaDocumentToIdeaSnapshot(document, common.util.timeFromDate(new Date()))
+    ideaDocumentToIdeaSnapshot(document, util.timeFromDate(new Date()))
   );
 };
 
@@ -848,7 +848,7 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
     .where("projectId", "==", projectId)
     .get();
   const list: Array<data.IdAndData<data.IdeaId, data.Idea>> = [];
-  const getTime = common.util.timeFromDate(new Date());
+  const getTime = util.timeFromDate(new Date());
   for (const document of querySnapshot.docs) {
     const documentValue = document.data();
     list.push({
@@ -863,7 +863,7 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
 
 const ideaDocumentToIdeaSnapshot = (
   ideaDocument: IdeaData,
-  getTime: common.data.Time
+  getTime: data.Time
 ): data.Idea => ({
   name: ideaDocument.name,
   createUserId: ideaDocument.createUserId,
@@ -897,8 +897,8 @@ export const addComment = async ({
   const newItemList: ReadonlyArray<data.IdeaItem> = [
     ...ideaDocument.itemList,
     {
-      body: data.ItemBody.Comment(validComment),
-      createTime: common.util.timeFromDate(updateTime),
+      body: data.IdeaItemBody.Comment(validComment),
+      createTime: util.timeFromDate(updateTime),
       createUserId: user.value.id,
     },
   ];
@@ -918,7 +918,7 @@ export const addComment = async ({
   return data.Maybe.Just(
     ideaDocumentToIdeaSnapshot(
       newIdeaDataWithNewTagList,
-      common.util.timeFromDate(updateTime)
+      util.timeFromDate(updateTime)
     )
   );
 };
@@ -950,7 +950,7 @@ export const getSuggestion = async (
     projectId: document.projectId,
     state: document.state,
     updateTime: firestoreTimestampToTime(document.updateTime),
-    getTime: common.util.timeFromDate(new Date()),
+    getTime: util.timeFromDate(new Date()),
   });
 };
 
@@ -980,16 +980,16 @@ export const addSuggestion = async ({
     changeList: [],
     ideaId,
     updateTime: admin.firestore.Timestamp.fromDate(nowTime),
-    state: "Creating",
+    state: data.SuggestionState.Creating,
   };
   await database
     .collection("suggestion")
     .doc(suggestionId)
     .create(suggestionData);
   const newItem: data.IdeaItem = {
-    createTime: common.util.timeFromDate(nowTime),
+    createTime: util.timeFromDate(nowTime),
     createUserId: userData.id,
-    body: data.ItemBody.SuggestionCreate(suggestionId),
+    body: data.IdeaItemBody.SuggestionCreate(suggestionId),
   };
   await database
     .collection("idea")
@@ -1009,48 +1009,7 @@ export const addSuggestion = async ({
       projectId: suggestionData.projectId,
       state: suggestionData.state,
       updateTime: firestoreTimestampToTime(suggestionData.updateTime),
-      getTime: common.util.timeFromDate(new Date()),
+      getTime: util.timeFromDate(new Date()),
     },
-  });
-};
-
-export const updateSuggestion = async ({
-  accessToken,
-  name,
-  reason,
-  changeList,
-  suggestionId,
-}: data.UpdateSuggestionParameter): Promise<data.Maybe<data.Suggestion>> => {
-  const userDataMaybe = await getUserByAccessToken(accessToken);
-  if (userDataMaybe._ === "Nothing") {
-    return data.Maybe.Nothing();
-  }
-  const userData = userDataMaybe.value;
-  const suggestionMaybe = await getSuggestion(suggestionId);
-  if (suggestionMaybe._ === "Nothing") {
-    return data.Maybe.Nothing();
-  }
-  const suggestion = suggestionMaybe.value;
-  if (suggestion.createUserId !== userData.id) {
-    return data.Maybe.Nothing();
-  }
-  if (suggestion.state !== "Creating") {
-    return data.Maybe.Nothing();
-  }
-  await database.collection("suggestion").doc(suggestionId).update({
-    name,
-    reason,
-    changeList,
-  });
-  return data.Maybe.Just({
-    name,
-    reason,
-    changeList,
-    createUserId: suggestion.createUserId,
-    ideaId: suggestion.ideaId,
-    state: suggestion.state,
-    updateTime: suggestion.updateTime,
-    getTime: common.util.timeFromDate(new Date()),
-    projectId: suggestion.projectId,
   });
 };
