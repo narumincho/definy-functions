@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
-import * as common from "definy-common";
+import * as common from "definy-core";
 import * as crypto from "crypto";
-import * as data from "definy-common/source/data";
+import * as data from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as image from "./image";
 import * as jimp from "jimp";
@@ -9,6 +9,7 @@ import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import * as tokenize from "./tokenize";
 import type * as typedFirestore from "typed-admin-firestore";
+import * as util from "definy-core/source/util";
 import axios, { AxiosResponse } from "axios";
 import { URL } from "url";
 
@@ -252,7 +253,7 @@ const logInUrlFromOpenIdConnectProviderAndState = (
 
 const firestoreTimestampToTime = (
   timestamp: admin.firestore.Timestamp
-): data.Time => common.util.timeFromDate(timestamp.toDate());
+): data.Time => util.timeFromDate(timestamp.toDate());
 
 const createUrl = (
   originAndPath: string,
@@ -926,7 +927,7 @@ const ideaGetText = (ideaData: IdeaData): string => {
   return [
     ideaData.name,
     ...ideaData.itemList.map((e) =>
-      e.body._ === "Comment" ? e.body.string_ : ""
+      e.body._ === "Comment" ? e.body.string : ""
     ),
   ].join("\n");
 };

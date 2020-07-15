@@ -1,5 +1,5 @@
-import * as common from "definy-common";
-import * as data from "definy-common/source/data";
+import * as common from "definy-core";
+import * as data from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
 import * as lib from "./lib";
@@ -300,16 +300,6 @@ const callApiFunction = async (
       return data.Maybe.codec(
         data.IdAndData.codec(data.SuggestionId.codec, data.Suggestion.codec)
       ).encode(suggestionSnapshotAndIdMaybe);
-    }
-    case "updateSuggestion": {
-      const updateSuggestionParameter = data.UpdateSuggestionParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const suggestionMaybe = await lib.updateSuggestion(
-        updateSuggestionParameter
-      );
-      return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
     }
   }
 };
