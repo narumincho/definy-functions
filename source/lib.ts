@@ -66,39 +66,17 @@ type StateData = {
  * 登録してくれたユーザー
  */
 type UserData = {
-  /**
-   * ユーザー名
-   * 表示される名前。他のユーザーとかぶっても良い。絵文字も使える
-   * 全角英数は半角英数、半角カタカナは全角カタカナ、(株)の合字を分解するなどのNFKCの正規化がされる
-   * U+0000-U+0019 と U+007F-U+00A0 の範囲の文字は入らない
-   * 前後に空白を含められない
-   * 間の空白は2文字以上連続しない
-   * 文字数のカウント方法は正規化されたあとのCodePoint単位
-   * Twitterと同じ、1文字以上50文字以下
-   */
-  readonly name: string;
-  /**
-   * プロフィール画像
-   */
-  readonly imageHash: data.ImageToken;
-  /**
-   * 自己紹介文。改行文字を含めることができる。
-   *
-   * Twitterと同じ 0～160文字
-   */
-  readonly introduction: string;
-  /** ユーザーが作成された日時 */
-  readonly createdAt: admin.firestore.Timestamp;
-  /** プロジェクトに対する いいね */
-  readonly likedProjectIdList: ReadonlyArray<data.ProjectId>;
-
-  readonly developedProjectIdList: ReadonlyArray<data.ProjectId>;
-
-  readonly commentedIdeaIdList: ReadonlyArray<data.IdeaId>;
   /** アクセストークンのハッシュ値 */
   readonly accessTokenHash: AccessTokenHash;
   /** アクセストークンを発行した日時 */
   readonly accessTokenIssueTime: admin.firestore.Timestamp;
+  readonly commentedIdeaIdList: ReadonlyArray<data.IdeaId>;
+  readonly createdAt: admin.firestore.Timestamp;
+  readonly developedProjectIdList: ReadonlyArray<data.ProjectId>;
+  readonly imageHash: data.ImageToken;
+  readonly introduction: string;
+  readonly likedProjectIdList: ReadonlyArray<data.ProjectId>;
+  readonly name: string;
   /** ユーザーのログイン */
   readonly openIdConnect: OpenIdConnectProviderAndId;
 };
@@ -123,13 +101,13 @@ type OpenIdConnectProviderAndId = {
 };
 
 type IdeaData = {
-  readonly name: string;
-  readonly createUserId: data.UserId;
   readonly createTime: admin.firestore.Timestamp;
-  readonly projectId: data.ProjectId;
+  readonly createUserId: data.UserId;
   readonly itemList: ReadonlyArray<data.IdeaItem>;
-  readonly updateTime: admin.firestore.Timestamp;
+  readonly name: string;
+  readonly projectId: data.ProjectId;
   readonly tagList: ReadonlyArray<string>;
+  readonly updateTime: admin.firestore.Timestamp;
 };
 
 type SuggestionData = {
