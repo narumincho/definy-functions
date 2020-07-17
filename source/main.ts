@@ -1,8 +1,32 @@
 import * as common from "definy-core";
-import * as data from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as html from "@narumincho/html";
 import * as lib from "./lib";
+import {
+  AccessToken,
+  AddCommentParameter,
+  AddSuggestionParameter,
+  Binary,
+  CreateIdeaParameter,
+  CreateProjectParameter,
+  IdAndData,
+  Idea,
+  IdeaId,
+  ImageToken,
+  Language,
+  List,
+  Location,
+  Maybe,
+  Project,
+  ProjectId,
+  RequestLogInUrlRequestData,
+  Resource,
+  String,
+  Suggestion,
+  SuggestionId,
+  User,
+  UserId,
+} from "definy-core/source/data";
 import { URL } from "url";
 
 /*
@@ -22,7 +46,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
   const normalizedUrl = common.urlDataAndAccessTokenToUrl(
     urlData,
-    data.Maybe.Nothing()
+    Maybe.Nothing()
   );
   console.log("requestUrl", requestUrl.toString());
   console.log("normalizedUrl", normalizedUrl.toString());
@@ -78,7 +102,7 @@ export const indexHtml = functions.https.onRequest((request, response) => {
   );
 });
 
-const loadingMessage = (language: data.Language): string => {
+const loadingMessage = (language: Language): string => {
   switch (language) {
     case "English":
       return "Loading Definy ...";
@@ -89,10 +113,7 @@ const loadingMessage = (language: data.Language): string => {
   }
 };
 
-const description = (
-  language: data.Language,
-  location: data.Location
-): string => {
+const description = (language: Language, location: Location): string => {
   switch (language) {
     case "English":
       return englishDescription(location);
@@ -103,7 +124,7 @@ const description = (
   }
 };
 
-const englishDescription = (location: data.Location): string => {
+const englishDescription = (location: Location): string => {
   switch (location._) {
     case "Home":
       return "Definy is Web App for Web App.";
@@ -124,7 +145,7 @@ const englishDescription = (location: data.Location): string => {
   }
 };
 
-const japaneseDescription = (location: data.Location): string => {
+const japaneseDescription = (location: Location): string => {
   switch (location._) {
     case "Home":
       return "ブラウザで動作する革新的なプログラミング言語!";
@@ -145,7 +166,7 @@ const japaneseDescription = (location: data.Location): string => {
   }
 };
 
-const esperantoDescription = (location: data.Location): string => {
+const esperantoDescription = (location: Location): string => {
   switch (location._) {
     case "Home":
       return "Noviga programlingvo, kiu funkcias en la retumilo";
@@ -193,39 +214,35 @@ const callApiFunction = async (
 ): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
     case "checkConnection": {
-      return data.String.codec.encode("ok");
+      return String.codec.encode("ok");
     }
     case "requestLogInUrl": {
-      const requestData = data.RequestLogInUrlRequestData.codec.decode(
-        0,
-        binary
-      ).result;
+      const requestData = RequestLogInUrlRequestData.codec.decode(0, binary)
+        .result;
       const url = await lib.requestLogInUrl(requestData);
-      return data.String.codec.encode(url.toString());
+      return String.codec.encode(url.toString());
     }
     case "getUserByAccessToken": {
-      return data.Maybe.codec(
-        data.IdAndData.codec(data.UserId.codec, data.User.codec)
-      ).encode(
+      return Resource.codec(IdAndData.codec(UserId.codec, User.codec)).encode(
         await lib.getUserByAccessToken(
-          data.AccessToken.codec.decode(0, binary).result
+          AccessToken.codec.decode(0, binary).result
         )
       );
     }
     case "getUser": {
-      const userData = await lib.getUserSnapshot(
-        data.UserId.codec.decode(0, binary).result
+      const userResource = await lib.getUser(
+        UserId.codec.decode(0, binary).result
       );
-      return data.Maybe.codec(data.User.codec).encode(userData);
+      return Resource.codec(User.codec).encode(userResource);
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
-        data.ImageToken.codec.decode(0, binary).result
+        ImageToken.codec.decode(0, binary).result
       );
-      return data.Binary.codec.encode(imageBinary);
+      return Maybe.codec(Binary.codec).encode(imageBinary);
     }
     case "createProject": {
-      const createProjectParameter = data.CreateProjectParameter.codec.decode(
+      const createProjectParameter = CreateProjectParameter.codec.decode(
         0,
         binary
       ).result;
@@ -233,72 +250,63 @@ const callApiFunction = async (
         createProjectParameter.accessToken,
         createProjectParameter.projectName
       );
-      return data.Maybe.codec(
-        data.IdAndData.codec(data.ProjectId.codec, data.Project.codec)
+      return Resource.codec(
+        IdAndData.codec(ProjectId.codec, Project.codec)
       ).encode(newProject);
     }
-    case "getAllProjectId": {
-      return data.List.codec(data.ProjectId.codec).encode(
-        await lib.getAllProjectId()
-      );
-    }
     case "getAllProject": {
-      return data.List.codec(
-        data.IdAndData.codec(data.ProjectId.codec, data.Project.codec)
-      ).encode(await lib.getAllProjectSnapshot());
+      return List.codec(
+        IdAndData.codec(ProjectId.codec, Resource.codec(Project.codec))
+      ).encode(await lib.getTop50Project());
     }
     case "getProject": {
-      const projectId = data.ProjectId.codec.decode(0, binary).result;
-      const projectMaybe = await lib.getProjectSnapshot(projectId);
-      return data.Maybe.codec(data.Project.codec).encode(projectMaybe);
+      const projectId = ProjectId.codec.decode(0, binary).result;
+      const projectMaybe = await lib.getProject(projectId);
+      return Resource.codec(Project.codec).encode(projectMaybe);
     }
     case "getIdea": {
-      const ideaId = data.IdeaId.codec.decode(0, binary).result;
+      const ideaId = IdeaId.codec.decode(0, binary).result;
       const ideaMaybe = await lib.getIdea(ideaId);
-      return data.Maybe.codec(data.Idea.codec).encode(ideaMaybe);
+      return Resource.codec(Idea.codec).encode(ideaMaybe);
     }
     case "getIdeaAndIdListByProjectId": {
-      const projectId = data.ProjectId.codec.decode(0, binary).result;
+      const projectId = ProjectId.codec.decode(0, binary).result;
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
         projectId
       );
-      return data.List.codec(
-        data.IdAndData.codec(data.IdeaId.codec, data.Idea.codec)
+      return List.codec(
+        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
       ).encode(ideaSnapshotAndIdList);
     }
     case "createIdea": {
-      const createIdeaParameter = data.CreateIdeaParameter.codec.decode(
-        0,
-        binary
-      ).result;
+      const createIdeaParameter = CreateIdeaParameter.codec.decode(0, binary)
+        .result;
       const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return data.Maybe.codec(
-        data.IdAndData.codec(data.IdeaId.codec, data.Idea.codec)
+      return Maybe.codec(
+        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
       ).encode(ideaSnapshotAndIdMaybe);
     }
     case "addComment": {
-      const addCommentParameter = data.AddCommentParameter.codec.decode(
-        0,
-        binary
-      ).result;
+      const addCommentParameter = AddCommentParameter.codec.decode(0, binary)
+        .result;
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return data.Maybe.codec(data.Idea.codec).encode(ideaSnapshotMaybe);
+      return Maybe.codec(Resource.codec(Idea.codec)).encode(ideaSnapshotMaybe);
     }
     case "getSuggestion": {
-      const suggestionId = data.SuggestionId.codec.decode(0, binary).result;
+      const suggestionId = SuggestionId.codec.decode(0, binary).result;
       const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return data.Maybe.codec(data.Suggestion.codec).encode(suggestionMaybe);
+      return Resource.codec(Suggestion.codec).encode(suggestionMaybe);
     }
     case "addSuggestion": {
-      const addSuggestionParameter = data.AddSuggestionParameter.codec.decode(
+      const addSuggestionParameter = AddSuggestionParameter.codec.decode(
         0,
         binary
       ).result;
       const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
         addSuggestionParameter
       );
-      return data.Maybe.codec(
-        data.IdAndData.codec(data.SuggestionId.codec, data.Suggestion.codec)
+      return Maybe.codec(
+        IdAndData.codec(SuggestionId.codec, Resource.codec(Suggestion.codec))
       ).encode(suggestionSnapshotAndIdMaybe);
     }
   }
@@ -348,10 +356,10 @@ export const logInCallback = functions.https.onRequest((request, response) => {
         .urlDataAndAccessTokenToUrl(
           {
             clientMode: "Release",
-            location: data.Location.Home,
+            location: Location.Home,
             language: common.defaultLanguage,
           },
-          data.Maybe.Nothing()
+          Maybe.Nothing()
         )
         .toString()
     );
@@ -366,7 +374,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
           common
             .urlDataAndAccessTokenToUrl(
               result.urlData,
-              data.Maybe.Just(result.accessToken)
+              Maybe.Just(result.accessToken)
             )
             .toString()
         );
@@ -383,6 +391,6 @@ export const getFile = functions.https.onRequest((request, response) => {
     return;
   }
   lib
-    .getReadableStream(request.path.split("/")[1] as data.ImageToken)
+    .getReadableStream(request.path.split("/")[1] as ImageToken)
     .pipe(response);
 });
