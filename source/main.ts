@@ -223,7 +223,9 @@ const callApiFunction = async (
       return String.codec.encode(url.toString());
     }
     case "getUserByAccessToken": {
-      return Resource.codec(IdAndData.codec(UserId.codec, User.codec)).encode(
+      return Maybe.codec(
+        IdAndData.codec(UserId.codec, Resource.codec(User.codec))
+      ).encode(
         await lib.getUserByAccessToken(
           AccessToken.codec.decode(0, binary).result
         )

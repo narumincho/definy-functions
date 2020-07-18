@@ -593,7 +593,7 @@ const hashAccessToken = (accessToken: AccessToken): AccessTokenHash =>
 
 export const getUserByAccessToken = async (
   accessToken: AccessToken
-): Promise<Resource<IdAndData<UserId, User>>> => {
+): Promise<Maybe<IdAndData<UserId, Resource<User>>>> => {
   const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
   const querySnapshot = await database
     .collection("user")
@@ -602,18 +602,15 @@ export const getUserByAccessToken = async (
   const getTime = firestoreTimestampToTime(querySnapshot.readTime);
   const userDataDocs = querySnapshot.docs;
   if (userDataDocs.length !== 1) {
-    return {
-      dataMaybe: Maybe.Nothing(),
-      getTime,
-    };
+    return Maybe.Nothing();
   }
   const queryDocumentSnapshot = userDataDocs[0];
   const userData = queryDocumentSnapshot.data();
 
-  return {
-    dataMaybe: Maybe.Just({
-      id: queryDocumentSnapshot.id as UserId,
-      data: {
+  return Maybe.Just({
+    id: queryDocumentSnapshot.id as UserId,
+    data: {
+      dataMaybe: Maybe.Just({
         name: userData.name,
         imageHash: userData.imageHash,
         introduction: userData.introduction,
@@ -622,10 +619,10 @@ export const getUserByAccessToken = async (
         developProjectIdList: userData.developedProjectIdList,
         likeProjectIdList: userData.likedProjectIdList,
         getTime: util.timeFromDate(new Date()),
-      },
-    }),
-    getTime,
-  };
+      }),
+      getTime,
+    },
+  });
 };
 
 /**
