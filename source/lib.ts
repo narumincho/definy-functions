@@ -716,10 +716,10 @@ export const getFile = async (
   imageToken: ImageToken
 ): Promise<Maybe<Uint8Array>> => {
   const file = storageDefaultBucket.file(imageToken);
-  const downloadResponse = (await file.download())[0];
+  const downloadResponse: Buffer | undefined = (await file.download())[0];
   return downloadResponse === undefined
-    ? Maybe.Just(downloadResponse)
-    : Maybe.Nothing();
+    ? Maybe.Nothing()
+    : Maybe.Just(downloadResponse);
 };
 
 export const getTop50Project = async (): Promise<
