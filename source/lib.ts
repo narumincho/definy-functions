@@ -653,11 +653,11 @@ export const getUser = async (userId: UserId): Promise<Resource<User>> => {
 export const createProject = async (
   accessToken: AccessToken,
   projectName: string
-): Promise<Resource<IdAndData<ProjectId, Project>>> => {
+): Promise<Maybe<IdAndData<ProjectId, Resource<Project>>>> => {
   const userDataMaybe = await getUserByAccessToken(accessToken);
-  switch (userDataMaybe.dataMaybe._) {
+  switch (userDataMaybe._) {
     case "Just": {
-      const userData = userDataMaybe.dataMaybe.value;
+      const userData = userDataMaybe.value;
       const normalizedProjectName = common.stringToValidProjectName(
         projectName
       );
@@ -684,11 +684,11 @@ export const createProject = async (
         tagList: await tokenize.tokenize(projectNameWithDefault),
       };
 
-      database.collection("project").doc(projectId).create(project);
-      return {
-        dataMaybe: Maybe.Just({
-          id: projectId,
-          data: {
+      await database.collection("project").doc(projectId).create(project);
+      return Maybe.Just({
+        id: projectId,
+        data: {
+          dataMaybe: Maybe.Just({
             name: project.name,
             iconHash: project.iconHash,
             imageHash: project.imageHash,
@@ -698,16 +698,13 @@ export const createProject = async (
             getTime: createTimeAsTime,
             partIdList: project.partIdList,
             typePartIdList: project.typePartIdList,
-          },
-        }),
-        getTime: createTimeAsTime,
-      };
+          }),
+          getTime: createTimeAsTime,
+        },
+      });
     }
     case "Nothing": {
-      return {
-        dataMaybe: Maybe.Nothing(),
-        getTime: util.timeFromDate(new Date()),
-      };
+      return Maybe.Nothing();
     }
   }
 };
@@ -789,7 +786,7 @@ export const createIdea = async (
   const userIdAndUserResource = await getUserByAccessToken(
     createIdeaParameter.accessToken
   );
-  if (userIdAndUserResource.dataMaybe._ === "Nothing") {
+  if (userIdAndUserResource._ === "Nothing") {
     return Maybe.Nothing();
   }
   const validIdeaName = common.stringToValidIdeaName(
@@ -813,7 +810,7 @@ export const createIdea = async (
   const ideaId = createRandomId() as IdeaId;
   const ideaData: IdeaData = {
     name: validIdeaName,
-    createUserId: userIdAndUserResource.dataMaybe.value.id,
+    createUserId: userIdAndUserResource.value.id,
     projectId: createIdeaParameter.projectId,
     createTime,
     itemList: [],
@@ -888,7 +885,7 @@ export const addComment = async ({
     return Maybe.Nothing();
   }
   const user = await getUserByAccessToken(accessToken);
-  if (user.dataMaybe._ === "Nothing") {
+  if (user._ === "Nothing") {
     return Maybe.Nothing();
   }
   const ideaDocument = (
@@ -903,7 +900,7 @@ export const addComment = async ({
     {
       body: IdeaItemBody.Comment(validComment),
       createTime: util.timeFromDate(updateTime),
-      createUserId: user.dataMaybe.value.id,
+      createUserId: user.value.id,
     },
   ];
   const newIdeaData: IdeaData = {
@@ -970,10 +967,10 @@ export const addSuggestion = async ({
   Maybe<IdAndData<SuggestionId, Resource<Suggestion>>>
 > => {
   const userResource = await getUserByAccessToken(accessToken);
-  if (userResource.dataMaybe._ === "Nothing") {
+  if (userResource._ === "Nothing") {
     return Maybe.Nothing();
   }
-  const userData = userResource.dataMaybe.value;
+  const userData = userResource.value;
   const ideaResource = await getIdea(ideaId);
   if (ideaResource.dataMaybe._ === "Nothing") {
     return Maybe.Nothing();

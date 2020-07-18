@@ -252,8 +252,8 @@ const callApiFunction = async (
         createProjectParameter.accessToken,
         createProjectParameter.projectName
       );
-      return Resource.codec(
-        IdAndData.codec(ProjectId.codec, Project.codec)
+      return Maybe.codec(
+        IdAndData.codec(ProjectId.codec, Resource.codec(Project.codec))
       ).encode(newProject);
     }
     case "getAllProject": {
