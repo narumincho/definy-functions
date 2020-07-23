@@ -193,20 +193,22 @@ const esperantoDescription = (location: Location): string => {
  *    https://us-central1-definy-lang.cloudfunctions.net/api
  * =====================================================================
  */
-export const api = functions.https.onRequest(async (request, response) => {
-  if (supportCrossOriginResourceSharing(request, response)) {
-    return;
-  }
-  const result = await callApiFunction(
-    request.path.split("/")[1],
-    request.body as Buffer
-  );
-  if (result === undefined) {
-    response.send("想定外のパスを受けとった request.path=" + request.path);
-    return;
-  }
-  response.send(Buffer.from(result));
-});
+export const api = functions
+  .runWith({ memory: "256MB" })
+  .https.onRequest(async (request, response) => {
+    if (supportCrossOriginResourceSharing(request, response)) {
+      return;
+    }
+    const result = await callApiFunction(
+      request.path.split("/")[1],
+      request.body as Buffer
+    );
+    if (result === undefined) {
+      response.send("想定外のパスを受けとった request.path=" + request.path);
+      return;
+    }
+    response.send(Buffer.from(result));
+  });
 
 const callApiFunction = async (
   path: string,

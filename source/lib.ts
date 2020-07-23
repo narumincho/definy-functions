@@ -664,12 +664,8 @@ export const createProject = async (
       const projectNameWithDefault =
         normalizedProjectName === null ? "?" : normalizedProjectName;
       const projectId = createRandomId() as ProjectId;
-      const iconHash = savePngFile(
-        await image.createProjectIconFromChar(projectNameWithDefault[0])
-      );
-      const imageHash = savePngFile(
-        await image.createProjectImage(projectNameWithDefault)
-      );
+      const iconHash = savePngFile(await image.createProjectIcon());
+      const imageHash = savePngFile(await image.createProjectImage());
       const createTime = admin.firestore.Timestamp.now();
       const createTimeAsTime = firestoreTimestampToTime(createTime);
       const project: ProjectData = {
