@@ -1,5 +1,4 @@
 import * as jimp from "jimp";
-import { promises as fsPromise } from "fs";
 
 export const createProjectIcon = async (): Promise<Buffer> => {
   const width = 64;
@@ -55,7 +54,3 @@ const randomColor = (): number =>
     (2 + Math.floor(Math.random() * 5)) * 32,
     255
   );
-
-createProjectImage().then((buffer) => {
-  fsPromise.writeFile("image.png", buffer);
-});

@@ -194,7 +194,7 @@ const esperantoDescription = (location: Location): string => {
  * =====================================================================
  */
 export const api = functions
-  .runWith({ memory: "256MB" })
+  .runWith({ memory: "512MB" })
   .https.onRequest(async (request, response) => {
     if (supportCrossOriginResourceSharing(request, response)) {
       return;
