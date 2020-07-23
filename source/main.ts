@@ -39,38 +39,39 @@ import { URL } from "url";
  * =====================================================================
  */
 
-export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = new URL(
-    "https://" + request.hostname + request.originalUrl
-  );
-  const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
-  const normalizedUrl = common.urlDataAndAccessTokenToUrl(
-    urlData,
-    Maybe.Nothing()
-  );
-  console.log("requestUrl", requestUrl.toString());
-  console.log("normalizedUrl", normalizedUrl.toString());
-  if (requestUrl.toString() !== normalizedUrl.toString()) {
-    response.redirect(301, normalizedUrl.toString());
-    return;
-  }
-  response.status(200);
-  response.setHeader("content-type", "text/html");
-  response.send(
-    html.toString({
-      appName: "Definy",
-      pageName: "Definy",
-      iconPath: ["icon"],
-      coverImageUrl: new URL((common.releaseOrigin as string) + "/icon"),
-      description: description(urlData.language, urlData.location),
-      scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
-      styleUrlList: [],
-      javaScriptMustBeAvailable: true,
-      twitterCard: html.TwitterCard.SummaryCard,
-      language: html.Language.Japanese,
-      manifestPath: ["manifest.json"],
-      url: new URL(normalizedUrl.toString()),
-      style: `/*
+export const indexHtml = functions.https.onRequest(
+  async (request, response) => {
+    const requestUrl = new URL(
+      "https://" + request.hostname + request.originalUrl
+    );
+    const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
+    const normalizedUrl = common.urlDataAndAccessTokenToUrl(
+      urlData,
+      Maybe.Nothing()
+    );
+    console.log("requestUrl", requestUrl.toString());
+    console.log("normalizedUrl", normalizedUrl.toString());
+    if (requestUrl.toString() !== normalizedUrl.toString()) {
+      response.redirect(301, normalizedUrl.toString());
+      return;
+    }
+    response.status(200);
+    response.setHeader("content-type", "text/html");
+    response.send(
+      html.toString({
+        appName: "Definy",
+        pageName: "Definy",
+        iconPath: ["icon"],
+        coverImageUrl: await coverImageUrl(urlData.location),
+        description: description(urlData.language, urlData.location),
+        scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
+        styleUrlList: [],
+        javaScriptMustBeAvailable: true,
+        twitterCard: html.TwitterCard.SummaryCard,
+        language: html.Language.Japanese,
+        manifestPath: ["manifest.json"],
+        url: new URL(normalizedUrl.toString()),
+        style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
   */
@@ -97,10 +98,26 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       box-sizing: border-box;
       color: white;
   }`,
-      body: [html.div({}, loadingMessage(urlData.language))],
-    })
-  );
-});
+        body: [html.div({}, loadingMessage(urlData.language))],
+      })
+    );
+  }
+);
+
+const coverImageUrl = async (location: Location): Promise<URL> => {
+  switch (location._) {
+    case "Project": {
+      const projectResource = await lib.getProject(location.projectId);
+      if (projectResource.dataMaybe._ === "Just") {
+        return new URL(
+          "https://us-central1-definy-lang.cloudfunctions.net/getFile/" +
+            (projectResource.dataMaybe.value.imageHash as string)
+        );
+      }
+    }
+  }
+  return new URL((common.releaseOrigin as string) + "/icon");
+};
 
 const loadingMessage = (language: Language): string => {
   switch (language) {
