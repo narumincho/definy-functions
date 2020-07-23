@@ -6,7 +6,6 @@ import * as image from "./image";
 import * as jimp from "jimp";
 import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
-import * as tokenize from "./tokenize";
 import type * as typedFirestore from "typed-admin-firestore";
 import * as util from "definy-core/source/util";
 import {
@@ -677,7 +676,7 @@ export const createProject = async (
         updateTime: createTime,
         partIdList: [],
         typePartIdList: [],
-        tagList: await tokenize.tokenize(projectNameWithDefault),
+        tagList: [],
       };
 
       await database.collection("project").doc(projectId).create(project);
@@ -811,7 +810,7 @@ export const createIdea = async (
     createTime,
     itemList: [],
     updateTime: createTime,
-    tagList: await tokenize.tokenize(validIdeaName),
+    tagList: [],
   };
   const writeResult = await database
     .collection("idea")
@@ -906,7 +905,7 @@ export const addComment = async ({
   };
   const newIdeaDataWithNewTagList: IdeaData = {
     ...newIdeaData,
-    tagList: await tokenize.tokenize(ideaGetText(newIdeaData)),
+    tagList: [],
   };
   const writeResult = await database
     .collection("idea")
