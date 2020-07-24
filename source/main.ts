@@ -5,8 +5,9 @@ import * as lib from "./lib";
 import {
   AccessToken,
   AddCommentParameter,
-  AddSuggestionParameter,
   Binary,
+  Commit,
+  CommitId,
   CreateIdeaParameter,
   CreateProjectParameter,
   IdAndData,
@@ -22,8 +23,6 @@ import {
   RequestLogInUrlRequestData,
   Resource,
   String,
-  Suggestion,
-  SuggestionId,
   User,
   UserId,
 } from "definy-core/source/data";
@@ -39,38 +38,39 @@ import { URL } from "url";
  * =====================================================================
  */
 
-export const indexHtml = functions.https.onRequest((request, response) => {
-  const requestUrl = new URL(
-    "https://" + request.hostname + request.originalUrl
-  );
-  const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
-  const normalizedUrl = common.urlDataAndAccessTokenToUrl(
-    urlData,
-    Maybe.Nothing()
-  );
-  console.log("requestUrl", requestUrl.toString());
-  console.log("normalizedUrl", normalizedUrl.toString());
-  if (requestUrl.toString() !== normalizedUrl.toString()) {
-    response.redirect(301, normalizedUrl.toString());
-    return;
-  }
-  response.status(200);
-  response.setHeader("content-type", "text/html");
-  response.send(
-    html.toString({
-      appName: "Definy",
-      pageName: "Definy",
-      iconPath: ["icon"],
-      coverImageUrl: new URL((common.releaseOrigin as string) + "/icon"),
-      description: description(urlData.language, urlData.location),
-      scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
-      styleUrlList: [],
-      javaScriptMustBeAvailable: true,
-      twitterCard: html.TwitterCard.SummaryCard,
-      language: html.Language.Japanese,
-      manifestPath: ["manifest.json"],
-      url: new URL(normalizedUrl.toString()),
-      style: `/*
+export const indexHtml = functions.https.onRequest(
+  async (request, response) => {
+    const requestUrl = new URL(
+      "https://" + request.hostname + request.originalUrl
+    );
+    const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
+    const normalizedUrl = common.urlDataAndAccessTokenToUrl(
+      urlData,
+      Maybe.Nothing()
+    );
+    console.log("requestUrl", requestUrl.toString());
+    console.log("normalizedUrl", normalizedUrl.toString());
+    if (requestUrl.toString() !== normalizedUrl.toString()) {
+      response.redirect(301, normalizedUrl.toString());
+      return;
+    }
+    response.status(200);
+    response.setHeader("content-type", "text/html");
+    response.send(
+      html.toString({
+        appName: "Definy",
+        pageName: "Definy",
+        iconPath: ["icon"],
+        coverImageUrl: await coverImageUrl(urlData.location),
+        description: description(urlData.language, urlData.location),
+        scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
+        styleUrlList: [],
+        javaScriptMustBeAvailable: true,
+        twitterCard: html.TwitterCard.SummaryCard,
+        language: html.Language.Japanese,
+        manifestPath: ["manifest.json"],
+        url: new URL(normalizedUrl.toString()),
+        style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
   */
@@ -97,10 +97,26 @@ export const indexHtml = functions.https.onRequest((request, response) => {
       box-sizing: border-box;
       color: white;
   }`,
-      body: [html.div({}, loadingMessage(urlData.language))],
-    })
-  );
-});
+        body: [html.div({}, loadingMessage(urlData.language))],
+      })
+    );
+  }
+);
+
+const coverImageUrl = async (location: Location): Promise<URL> => {
+  switch (location._) {
+    case "Project": {
+      const projectResource = await lib.getProject(location.projectId);
+      if (projectResource.dataMaybe._ === "Just") {
+        return new URL(
+          "https://us-central1-definy-lang.cloudfunctions.net/getFile/" +
+            (projectResource.dataMaybe.value.imageHash as string)
+        );
+      }
+    }
+  }
+  return new URL((common.releaseOrigin as string) + "/icon");
+};
 
 const loadingMessage = (language: Language): string => {
   switch (language) {
@@ -136,8 +152,10 @@ const englishDescription = (location: Location): string => {
       return "User page id=" + (location.userId as string);
     case "Idea":
       return "Idea page id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "suggestion page id=" + (location.suggestionId as string);
+    case "Commit":
+      return "commit page id=" + (location.commitId as string);
+    case "Setting":
+      return "setting page";
     case "About":
       return "About";
     case "Debug":
@@ -157,8 +175,10 @@ const japaneseDescription = (location: Location): string => {
       return "ユーザー id=" + (location.userId as string);
     case "Idea":
       return "アイデア id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "提案 id=" + (location.suggestionId as string);
+    case "Commit":
+      return "提案 id=" + (location.commitId as string);
+    case "Setting":
+      return "設定ページ";
     case "About":
       return "Definyについて";
     case "Debug":
@@ -178,8 +198,10 @@ const esperantoDescription = (location: Location): string => {
       return "uzantopaĝo id=" + (location.userId as string);
     case "Idea":
       return "Ideopaĝo id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "sugestapaĝo id=" + (location.suggestionId as string);
+    case "Commit":
+      return "Kompromitipaĝo id=" + (location.commitId as string);
+    case "Setting":
+      return "Agordoj paĝo";
     case "About":
       return "pri paĝo";
     case "Debug":
@@ -194,7 +216,7 @@ const esperantoDescription = (location: Location): string => {
  * =====================================================================
  */
 export const api = functions
-  .runWith({ memory: "256MB" })
+  .runWith({ memory: "512MB" })
   .https.onRequest(async (request, response) => {
     if (supportCrossOriginResourceSharing(request, response)) {
       return;
@@ -296,22 +318,10 @@ const callApiFunction = async (
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
       return Maybe.codec(Resource.codec(Idea.codec)).encode(ideaSnapshotMaybe);
     }
-    case "getSuggestion": {
-      const suggestionId = SuggestionId.codec.decode(0, binary).result;
-      const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return Resource.codec(Suggestion.codec).encode(suggestionMaybe);
-    }
-    case "addSuggestion": {
-      const addSuggestionParameter = AddSuggestionParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
-        addSuggestionParameter
-      );
-      return Maybe.codec(
-        IdAndData.codec(SuggestionId.codec, Resource.codec(Suggestion.codec))
-      ).encode(suggestionSnapshotAndIdMaybe);
+    case "getCommit": {
+      const suggestionId = CommitId.codec.decode(0, binary).result;
+      const suggestionMaybe = await lib.getCommit(suggestionId);
+      return Resource.codec(Commit.codec).encode(suggestionMaybe);
     }
   }
 };
