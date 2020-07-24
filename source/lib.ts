@@ -11,27 +11,27 @@ import * as util from "definy-core/source/util";
 import {
   AccessToken,
   AddCommentParameter,
-  AddSuggestionParameter,
+  Comment,
+  Commit,
+  CommitId,
   CreateIdeaParameter,
   IdAndData,
   Idea,
   IdeaId,
-  IdeaItem,
-  IdeaItemBody,
+  IdeaState,
   ImageToken,
   Maybe,
   OpenIdConnectProvider,
+  PartHash,
   PartId,
   Project,
   ProjectId,
   RequestLogInUrlRequestData,
   Resource,
-  Suggestion,
-  SuggestionId,
-  SuggestionState,
   Time,
   Type,
   TypePartBody,
+  TypePartHash,
   TypePartId,
   UrlData,
   User,
@@ -66,9 +66,9 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     value: IdeaData;
     subCollections: Record<never, never>;
   };
-  suggestion: {
-    key: SuggestionId;
-    value: SuggestionData;
+  commit: {
+    key: CommitId;
+    value: CommitData;
     subCollections: Record<never, never>;
   };
   part: {
@@ -130,21 +130,28 @@ type OpenIdConnectProviderAndId = {
 type IdeaData = {
   readonly createTime: admin.firestore.Timestamp;
   readonly createUserId: UserId;
-  readonly itemList: ReadonlyArray<IdeaItem>;
+  readonly commentList: ReadonlyArray<Comment>;
+  readonly state: IdeaState;
   readonly name: string;
   readonly projectId: ProjectId;
+  readonly childIdeaIdList: ReadonlyArray<IdeaId>;
+  readonly commitIdList: ReadonlyArray<CommitId>;
   readonly tagList: ReadonlyArray<string>;
   readonly updateTime: admin.firestore.Timestamp;
 };
 
-type SuggestionData = {
-  readonly name: string;
-  readonly reason: string;
+type CommitData = {
+  readonly description: string;
   readonly createUserId: UserId;
-  readonly state: SuggestionState;
   readonly projectId: ProjectId;
   readonly ideaId: IdeaId;
+  readonly partHashList: ReadonlyArray<PartHash>;
+  readonly typePartHashList: ReadonlyArray<TypePartHash>;
+  readonly isDraft: boolean;
   readonly updateTime: admin.firestore.Timestamp;
+  readonly projectName: string;
+  readonly projectIcon: ImageToken;
+  readonly projectImage: ImageToken;
 };
 
 type PartData = {
@@ -166,8 +173,8 @@ type PartData = {
   destination: ReadonlyArray<string>;
   /** 最終更新日時 */
   updateTime: admin.firestore.Timestamp;
-  /** 影響を受けた提案 */
-  suggestionIdList: ReadonlyArray<SuggestionId>;
+  /** 影響を受けたコミット */
+  commitIdList: ReadonlyArray<CommitId>;
   /** 作成日時 */
   createdAt: admin.firestore.Timestamp;
 };
@@ -191,8 +198,8 @@ type TypePartData = {
   type: TypePartBody;
   /** 最終更新日時 */
   updateTime: admin.firestore.Timestamp;
-  /** 影響を受けた提案 */
-  suggestionIdList: ReadonlyArray<SuggestionId>;
+  /** 影響を受けたコミット */
+  commitIdList: ReadonlyArray<CommitId>;
   /** 作成日時 */
   createdTime: admin.firestore.Timestamp;
 };
@@ -809,7 +816,10 @@ export const createIdea = async (
     createUserId: userIdAndUserResource.value.id,
     projectId: createIdeaParameter.projectId,
     createTime,
-    itemList: [],
+    commentList: [],
+    childIdeaIdList: [],
+    commitIdList: [],
+    state: IdeaState.Creating,
     updateTime: createTime,
     tagList: [],
   };
@@ -867,7 +877,10 @@ const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
   createUserId: ideaDocument.createUserId,
   projectId: ideaDocument.projectId,
   createTime: firestoreTimestampToTime(ideaDocument.createTime),
-  itemList: ideaDocument.itemList,
+  state: ideaDocument.state,
+  commentList: ideaDocument.commentList,
+  childIdeaList: ideaDocument.childIdeaIdList,
+  commitIdList: ideaDocument.commitIdList,
   updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
 });
 
@@ -891,17 +904,17 @@ export const addComment = async ({
     return Maybe.Nothing();
   }
   const updateTime = new Date();
-  const newItemList: ReadonlyArray<IdeaItem> = [
-    ...ideaDocument.itemList,
+  const newCommentList: ReadonlyArray<Comment> = [
+    ...ideaDocument.commentList,
     {
-      body: IdeaItemBody.Comment(validComment),
+      body: validComment,
       createTime: util.timeFromDate(updateTime),
       createUserId: user.value.id,
     },
   ];
   const newIdeaData: IdeaData = {
     ...ideaDocument,
-    itemList: newItemList,
+    commentList: newCommentList,
     updateTime: admin.firestore.Timestamp.fromDate(updateTime),
   };
   const newIdeaDataWithNewTagList: IdeaData = {
@@ -920,100 +933,31 @@ export const addComment = async ({
   });
 };
 
-const ideaGetText = (ideaData: IdeaData): string => {
-  return [
-    ideaData.name,
-    ...ideaData.itemList.map((e) =>
-      e.body._ === "Comment" ? e.body.string : ""
-    ),
-  ].join("\n");
-};
-
-export const getSuggestion = async (
-  suggestionId: SuggestionId
-): Promise<Resource<Suggestion>> => {
+export const getCommit = async (
+  commitId: CommitId
+): Promise<Resource<Commit>> => {
   const documentSnapshot = await database
-    .collection("suggestion")
-    .doc(suggestionId)
+    .collection("commit")
+    .doc(commitId)
     .get();
   const document = documentSnapshot.data();
   return {
     dataMaybe:
       document === undefined
         ? Maybe.Nothing()
-        : Maybe.Just({
-            name: document.name,
-            reason: document.reason,
+        : Maybe.Just<Commit>({
+            description: document.description,
             createUserId: document.createUserId,
-            changeList: [],
             ideaId: document.ideaId,
             projectId: document.projectId,
-            state: document.state,
+            projectName: document.projectName,
+            projectIcon: document.projectIcon,
+            partHashList: document.partHashList,
+            typePartHashList: [],
+            projectImage: document.projectImage,
             updateTime: firestoreTimestampToTime(document.updateTime),
-            getTime: util.timeFromDate(new Date()),
+            isDraft: document.isDraft,
           }),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
   };
-};
-
-export const addSuggestion = async ({
-  accessToken,
-  ideaId,
-}: AddSuggestionParameter): Promise<
-  Maybe<IdAndData<SuggestionId, Resource<Suggestion>>>
-> => {
-  const userResource = await getUserByAccessToken(accessToken);
-  if (userResource._ === "Nothing") {
-    return Maybe.Nothing();
-  }
-  const userData = userResource.value;
-  const ideaResource = await getIdea(ideaId);
-  if (ideaResource.dataMaybe._ === "Nothing") {
-    return Maybe.Nothing();
-  }
-  const ideaData = ideaResource.dataMaybe.value;
-  const suggestionId = createRandomId() as SuggestionId;
-  const nowTime = new Date();
-  const suggestionData: SuggestionData = {
-    name: "",
-    reason: "",
-    createUserId: userData.id,
-    projectId: ideaData.projectId,
-    ideaId,
-    updateTime: admin.firestore.Timestamp.fromDate(nowTime),
-    state: SuggestionState.Creating,
-  };
-  await database
-    .collection("suggestion")
-    .doc(suggestionId)
-    .create(suggestionData);
-  const newItem: IdeaItem = {
-    createTime: util.timeFromDate(nowTime),
-    createUserId: userData.id,
-    body: IdeaItemBody.SuggestionCreate(suggestionId),
-  };
-  const writeResult = await database
-    .collection("idea")
-    .doc(ideaId)
-    .update({
-      itemList: admin.firestore.FieldValue.arrayUnion(newItem),
-    });
-
-  return Maybe.Just({
-    id: suggestionId,
-    data: {
-      dataMaybe: Maybe.Just({
-        name: suggestionData.name,
-        reason: suggestionData.reason,
-        changeList: [],
-        createUserId: suggestionData.createUserId,
-        ideaId: suggestionData.ideaId,
-        projectId: suggestionData.projectId,
-        state: suggestionData.state,
-        updateTime: firestoreTimestampToTime(suggestionData.updateTime),
-        getTime: util.timeFromDate(new Date()),
-      }),
-      getTime: firestoreTimestampToTime(writeResult.writeTime),
-    },
-  });
 };

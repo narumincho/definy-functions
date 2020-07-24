@@ -5,8 +5,9 @@ import * as lib from "./lib";
 import {
   AccessToken,
   AddCommentParameter,
-  AddSuggestionParameter,
   Binary,
+  Commit,
+  CommitId,
   CreateIdeaParameter,
   CreateProjectParameter,
   IdAndData,
@@ -22,8 +23,6 @@ import {
   RequestLogInUrlRequestData,
   Resource,
   String,
-  Suggestion,
-  SuggestionId,
   User,
   UserId,
 } from "definy-core/source/data";
@@ -153,8 +152,10 @@ const englishDescription = (location: Location): string => {
       return "User page id=" + (location.userId as string);
     case "Idea":
       return "Idea page id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "suggestion page id=" + (location.suggestionId as string);
+    case "Commit":
+      return "commit page id=" + (location.commitId as string);
+    case "Setting":
+      return "setting page";
     case "About":
       return "About";
     case "Debug":
@@ -174,8 +175,10 @@ const japaneseDescription = (location: Location): string => {
       return "ユーザー id=" + (location.userId as string);
     case "Idea":
       return "アイデア id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "提案 id=" + (location.suggestionId as string);
+    case "Commit":
+      return "提案 id=" + (location.commitId as string);
+    case "Setting":
+      return "設定ページ";
     case "About":
       return "Definyについて";
     case "Debug":
@@ -195,8 +198,10 @@ const esperantoDescription = (location: Location): string => {
       return "uzantopaĝo id=" + (location.userId as string);
     case "Idea":
       return "Ideopaĝo id=" + (location.ideaId as string);
-    case "Suggestion":
-      return "sugestapaĝo id=" + (location.suggestionId as string);
+    case "Commit":
+      return "Kompromitipaĝo id=" + (location.commitId as string);
+    case "Setting":
+      return "Agordoj paĝo";
     case "About":
       return "pri paĝo";
     case "Debug":
@@ -313,22 +318,10 @@ const callApiFunction = async (
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
       return Maybe.codec(Resource.codec(Idea.codec)).encode(ideaSnapshotMaybe);
     }
-    case "getSuggestion": {
-      const suggestionId = SuggestionId.codec.decode(0, binary).result;
-      const suggestionMaybe = await lib.getSuggestion(suggestionId);
-      return Resource.codec(Suggestion.codec).encode(suggestionMaybe);
-    }
-    case "addSuggestion": {
-      const addSuggestionParameter = AddSuggestionParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const suggestionSnapshotAndIdMaybe = await lib.addSuggestion(
-        addSuggestionParameter
-      );
-      return Maybe.codec(
-        IdAndData.codec(SuggestionId.codec, Resource.codec(Suggestion.codec))
-      ).encode(suggestionSnapshotAndIdMaybe);
+    case "getCommit": {
+      const suggestionId = CommitId.codec.decode(0, binary).result;
+      const suggestionMaybe = await lib.getCommit(suggestionId);
+      return Resource.codec(Commit.codec).encode(suggestionMaybe);
     }
   }
 };
