@@ -1,7 +1,7 @@
 import * as common from "definy-core";
 import * as functions from "firebase-functions";
-import * as html from "@narumincho/html";
 import * as lib from "./lib";
+import * as nHtml from "@narumincho/html";
 import {
   AccessToken,
   AddCommentParameter,
@@ -30,47 +30,48 @@ import { URL } from "url";
 
 /*
  * =====================================================================
- *               Index Html ブラウザが最初にリクエストするところ
+ *                  html ブラウザが最初にリクエストするところ
  *
- *          https://definy-lang.web.app/ など
- *              ↓ firebase.json rewrite
- *          Cloud Functions for Firebase / indexHtml
+ *                   https://definy-lang.web.app/
+ * https://definy-lang.web.app/project/077bc302f933bd78e20efd6fd3fa657e
+ *                             など
+ *            ↓ Firebase Hosting firebase.json rewrite
+ *                Cloud Functions for Firebase / html
  * =====================================================================
  */
 
-export const indexHtml = functions.https.onRequest(
-  async (request, response) => {
-    const requestUrl = new URL(
-      "https://" + request.hostname + request.originalUrl
-    );
-    const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
-    const normalizedUrl = common.urlDataAndAccessTokenToUrl(
-      urlData,
-      Maybe.Nothing()
-    );
-    console.log("requestUrl", requestUrl.toString());
-    console.log("normalizedUrl", normalizedUrl.toString());
-    if (requestUrl.toString() !== normalizedUrl.toString()) {
-      response.redirect(301, normalizedUrl.toString());
-      return;
-    }
-    response.status(200);
-    response.setHeader("content-type", "text/html");
-    response.send(
-      html.toString({
-        appName: "Definy",
-        pageName: "Definy",
-        iconPath: ["icon"],
-        coverImageUrl: await coverImageUrl(urlData.location),
-        description: description(urlData.language, urlData.location),
-        scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
-        styleUrlList: [],
-        javaScriptMustBeAvailable: true,
-        twitterCard: html.TwitterCard.SummaryCard,
-        language: html.Language.Japanese,
-        manifestPath: ["manifest.json"],
-        url: new URL(normalizedUrl.toString()),
-        style: `/*
+export const html = functions.https.onRequest(async (request, response) => {
+  const requestUrl = new URL(
+    "https://" + request.hostname + request.originalUrl
+  );
+  const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
+  const normalizedUrl = common.urlDataAndAccessTokenToUrl(
+    urlData,
+    Maybe.Nothing()
+  );
+  console.log("requestUrl", requestUrl.toString());
+  console.log("normalizedUrl", normalizedUrl.toString());
+  if (requestUrl.toString() !== normalizedUrl.toString()) {
+    response.redirect(301, normalizedUrl.toString());
+    return;
+  }
+  response.status(200);
+  response.setHeader("content-type", "text/html");
+  response.send(
+    nHtml.toString({
+      appName: "Definy",
+      pageName: "Definy",
+      iconPath: ["icon"],
+      coverImageUrl: await coverImageUrl(urlData.location),
+      description: description(urlData.language, urlData.location),
+      scriptUrlList: [new URL((common.releaseOrigin as string) + "/main.js")],
+      styleUrlList: [],
+      javaScriptMustBeAvailable: true,
+      twitterCard: nHtml.TwitterCard.SummaryCard,
+      language: nHtml.Language.Japanese,
+      manifestPath: ["manifest.json"],
+      url: new URL(normalizedUrl.toString()),
+      style: `/*
       Hack typeface https://github.com/source-foundry/Hack
       License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
   */
@@ -97,11 +98,10 @@ export const indexHtml = functions.https.onRequest(
       box-sizing: border-box;
       color: white;
   }`,
-        body: [html.div({}, loadingMessage(urlData.language))],
-      })
-    );
-  }
-);
+      body: [nHtml.div({}, loadingMessage(urlData.language))],
+    })
+  );
+});
 
 const coverImageUrl = async (location: Location): Promise<URL> => {
   switch (location._) {
