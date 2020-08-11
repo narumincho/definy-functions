@@ -15,6 +15,7 @@ import {
   Commit,
   CommitId,
   CreateIdeaParameter,
+  Expr,
   IdAndData,
   Idea,
   IdeaId,
@@ -26,6 +27,8 @@ import {
   PartId,
   Project,
   ProjectId,
+  ReleasePartId,
+  ReleaseTypePartId,
   RequestLogInUrlRequestData,
   Resource,
   Time,
@@ -72,13 +75,23 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     subCollections: Record<never, never>;
   };
   part: {
-    key: PartId;
+    key: PartHash;
     value: PartData;
     subCollections: Record<never, never>;
   };
   typePart: {
-    key: TypePartId;
+    key: TypePartHash;
     value: TypePartData;
+    subCollections: Record<never, never>;
+  };
+  releasedPart: {
+    key: ReleasePartId;
+    value: ReleasePartData;
+    subCollections: Record<never, never>;
+  };
+  releaseTypePart: {
+    key: ReleaseTypePartId;
+    value: ReleaseTypePartData;
     subCollections: Record<never, never>;
   };
 }>;
@@ -97,15 +110,21 @@ type UserData = {
   readonly accessTokenHash: AccessTokenHash;
   /** アクセストークンを発行した日時 */
   readonly accessTokenIssueTime: admin.firestore.Timestamp;
-  readonly commentedIdeaIdList: ReadonlyArray<IdeaId>;
-  readonly createdAt: admin.firestore.Timestamp;
-  readonly developedProjectIdList: ReadonlyArray<ProjectId>;
+  readonly createTime: admin.firestore.Timestamp;
   readonly imageHash: ImageToken;
   readonly introduction: string;
-  readonly likedProjectIdList: ReadonlyArray<ProjectId>;
+  /** ユーザー名 */
   readonly name: string;
   /** ユーザーのログイン */
   readonly openIdConnect: OpenIdConnectProviderAndId;
+};
+
+/** ソーシャルログインに関する情報 */
+type OpenIdConnectProviderAndId = {
+  /** プロバイダー (例: Google, GitHub) */
+  readonly provider: OpenIdConnectProvider;
+  /** プロバイダー内でのアカウントID */
+  readonly idInProvider: string;
 };
 
 type ProjectData = {
@@ -115,93 +134,97 @@ type ProjectData = {
   readonly createTime: admin.firestore.Timestamp;
   readonly updateTime: admin.firestore.Timestamp;
   readonly createUserId: UserId;
-  readonly partIdList: ReadonlyArray<PartId>;
-  readonly typePartIdList: ReadonlyArray<TypePartId>;
-  readonly tagList: ReadonlyArray<string>;
-};
-/** ソーシャルログインに関する情報 */
-type OpenIdConnectProviderAndId = {
-  /** プロバイダー (例: Google, GitHub) */
-  readonly provider: OpenIdConnectProvider;
-  /** プロバイダー内でのアカウントID */
-  readonly idInProvider: string;
+  readonly commitId: CommitId;
 };
 
 type IdeaData = {
+  readonly commentList: ReadonlyArray<Comment>;
   readonly createTime: admin.firestore.Timestamp;
   readonly createUserId: UserId;
-  readonly commentList: ReadonlyArray<Comment>;
-  readonly state: IdeaState;
   readonly name: string;
+  readonly parentIdeaId: IdeaId | null;
   readonly projectId: ProjectId;
-  readonly childIdeaIdList: ReadonlyArray<IdeaId>;
-  readonly commitIdList: ReadonlyArray<CommitId>;
-  readonly tagList: ReadonlyArray<string>;
+  readonly state: IdeaState;
   readonly updateTime: admin.firestore.Timestamp;
 };
 
 type CommitData = {
-  readonly description: string;
+  readonly createTime: admin.firestore.Timestamp;
   readonly createUserId: UserId;
-  readonly projectId: ProjectId;
+  readonly description: string;
   readonly ideaId: IdeaId;
-  readonly partHashList: ReadonlyArray<PartHash>;
-  readonly typePartHashList: ReadonlyArray<TypePartHash>;
   readonly isDraft: boolean;
-  readonly updateTime: admin.firestore.Timestamp;
+  readonly partHashList: ReadonlyArray<PartHash>;
+  readonly projectIconHash: ImageToken;
+  readonly projectId: ProjectId;
+  readonly projectImageHash: ImageToken;
   readonly projectName: string;
-  readonly projectIcon: ImageToken;
-  readonly projectImage: ImageToken;
+  readonly typePartHashList: ReadonlyArray<TypePartHash>;
+  readonly updateTime: admin.firestore.Timestamp;
 };
 
 type PartData = {
   /** パーツの名前 */
-  name: string;
+  readonly name: string;
   /** 説明文 */
-  description: string;
-  /** 語句.検索用 */
-  nounList: ReadonlyArray<string>;
-  /** 使用している型.検索用 */
-  usedTypeList: ReadonlyArray<string>;
-  /** 使用しているパーツ.検索用 */
-  usedPartList: ReadonlyArray<string>;
+  readonly description: string;
   /** 型 */
-  type: Type;
-  /** 作成元 (必ずしも削除されたパーツからではない) */
-  parent: ReadonlyArray<string>;
-  /** 移行先 (代用可ではない, 最新リリースで削除された(!=[])) */
-  destination: ReadonlyArray<string>;
-  /** 最終更新日時 */
-  updateTime: admin.firestore.Timestamp;
-  /** 影響を受けたコミット */
-  commitIdList: ReadonlyArray<CommitId>;
+  readonly type: Type;
+  /** 式 */
+  readonly expr: Expr;
+  /** 所属しているプロジェクト */
+  readonly projectId: Expr;
   /** 作成日時 */
-  createdAt: admin.firestore.Timestamp;
+  readonly createTime: admin.firestore.Timestamp;
+  /** プロジェクト内での参照ID */
+  readonly partId: PartId;
 };
 
 type TypePartData = {
   /** パーツの名前 */
-  name: string;
+  readonly name: string;
   /** 説明文 */
-  description: string;
-  /** 属しているモジュール */
-  moduleId: string;
-  /** 語句.検索用 */
-  nounList: ReadonlyArray<string>;
-  /** 使用している型.検索用 */
-  usedTypeList: ReadonlyArray<string>;
-  /** 作成元 (必ずしも削除された型からではない) */
-  parent: ReadonlyArray<string>;
-  /** 移行先 (代用可ではない, 最新リリースで削除された(!=[])) */
-  destination: ReadonlyArray<string>;
+  readonly description: string;
   /** 定義本体 */
-  type: TypePartBody;
-  /** 最終更新日時 */
-  updateTime: admin.firestore.Timestamp;
-  /** 影響を受けたコミット */
-  commitIdList: ReadonlyArray<CommitId>;
+  readonly typePartBody: TypePartBody;
+  /** 所属しているプロジェクト */
+  readonly projectId: Expr;
   /** 作成日時 */
-  createdTime: admin.firestore.Timestamp;
+  readonly createTime: admin.firestore.Timestamp;
+  /** プロジェクト内での参照ID */
+  readonly typePartId: TypePartId;
+};
+
+type ReleasePartData = {
+  /** パーツの名前 */
+  readonly name: string;
+  /** 説明文 */
+  readonly description: string;
+  /** 型 */
+  readonly type: Type;
+  /** 式 */
+  readonly expr: Expr;
+  /** 作成日時 */
+  readonly createTime: admin.firestore.Timestamp;
+  /** 更新日時 */
+  readonly updateTime: admin.firestore.Timestamp;
+  /** 作成したユーザー */
+  readonly createUserId: UserId;
+  /** 更新したユーザー */
+  readonly updateUserIdList: ReadonlyArray<UserId>;
+  /** 参照しているパーツ */
+  readonly partHash: PartHash;
+  /** 使用しているパーツ */
+  readonly usePartId: ReadonlyArray<ReleasePartId>;
+  /** 使用している型 (型の中で) */
+  readonly useTypePartIdInType: ReadonlyArray<ReleaseTypePartId>;
+  /** 使用している型 (式の中で) */
+  readonly useTypePartIdInExpr: ReadonlyArray<ReleaseTypePartId>;
+};
+
+type ReleaseTypePartData = {
+  /** 型パーツの名前 */
+  readonly name: string;
 };
 
 export const requestLogInUrl = async (
@@ -490,21 +513,18 @@ const createUser = async (
   provider: OpenIdConnectProvider
 ): Promise<AccessToken> => {
   const imageHash = await getAndSaveUserImage(providerUserData.imageUrl);
-  const createdAt = admin.firestore.Timestamp.now();
+  const createTime = admin.firestore.Timestamp.now();
   const accessTokenData = issueAccessToken();
   await database
     .collection("user")
     .doc(createRandomId() as UserId)
     .create({
       name: providerUserData.name,
-      commentedIdeaIdList: [],
-      createdAt,
-      developedProjectIdList: [],
+      createTime,
       imageHash,
       introduction: "",
       accessTokenHash: accessTokenData.accessTokenHash,
       accessTokenIssueTime: accessTokenData.issueTime,
-      likedProjectIdList: [],
       openIdConnect: {
         idInProvider: providerUserData.id,
         provider,
@@ -620,11 +640,7 @@ export const getUserByAccessToken = async (
         name: userData.name,
         imageHash: userData.imageHash,
         introduction: userData.introduction,
-        commentIdeaIdList: userData.commentedIdeaIdList,
-        createTime: firestoreTimestampToTime(userData.createdAt),
-        developProjectIdList: userData.developedProjectIdList,
-        likeProjectIdList: userData.likedProjectIdList,
-        getTime: util.timeFromDate(new Date()),
+        createTime: firestoreTimestampToTime(userData.createTime),
       }),
       getTime,
     },
@@ -647,10 +663,7 @@ export const getUser = async (userId: UserId): Promise<Resource<User>> => {
             name: userData.name,
             imageHash: userData.imageHash,
             introduction: userData.introduction,
-            commentIdeaIdList: userData.commentedIdeaIdList,
-            createTime: firestoreTimestampToTime(userData.createdAt),
-            developProjectIdList: userData.developedProjectIdList,
-            likeProjectIdList: userData.likedProjectIdList,
+            createTime: firestoreTimestampToTime(userData.createTime),
           }),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
   };
@@ -671,36 +684,60 @@ export const createProject = async (
         normalizedProjectName === null ? "?" : normalizedProjectName;
       const projectId = createRandomId() as ProjectId;
       const iconAndImage = await image.createProjectIconAndImage();
-      const iconHash = savePngFile(iconAndImage.icon);
-      const imageHash = savePngFile(iconAndImage.image);
+      const iconHashPromise = savePngFile(iconAndImage.icon);
+      const imageHashPromise = savePngFile(iconAndImage.image);
       const createTime = admin.firestore.Timestamp.now();
       const createTimeAsTime = firestoreTimestampToTime(createTime);
+      const rootIdeaId = createRandomId() as IdeaId;
+      const emptyCommitId = createRandomId() as CommitId;
+      const iconHash = await iconHashPromise;
+      const imageHash = await imageHashPromise;
+      await database.collection("idea").doc(rootIdeaId).create({
+        name: "root idea",
+        commentList: [],
+        createTime,
+        createUserId: userData.id,
+        parentIdeaId: null,
+        projectId,
+        state: IdeaState.Creating,
+        updateTime: createTime,
+      });
+      await database.collection("commit").doc(emptyCommitId).create({
+        isDraft: false,
+        createUserId: userData.id,
+        description: "initial commit",
+        ideaId: rootIdeaId,
+        partHashList: [],
+        typePartHashList: [],
+        projectIconHash: iconHash,
+        projectImageHash: imageHash,
+        createTime,
+        projectId,
+        projectName: projectNameWithDefault,
+        updateTime: createTime,
+      });
       const project: ProjectData = {
         name: projectNameWithDefault,
-        iconHash: await iconHash,
-        imageHash: await imageHash,
+        iconHash: await iconHashPromise,
+        imageHash: await imageHashPromise,
         createUserId: userData.id,
         createTime,
         updateTime: createTime,
-        partIdList: [],
-        typePartIdList: [],
-        tagList: [],
+        commitId: emptyCommitId,
       };
 
       await database.collection("project").doc(projectId).create(project);
-      return Maybe.Just({
+      return Maybe.Just<IdAndData<ProjectId, Resource<Project>>>({
         id: projectId,
         data: {
-          dataMaybe: Maybe.Just({
+          dataMaybe: Maybe.Just<Project>({
             name: project.name,
             iconHash: project.iconHash,
             imageHash: project.imageHash,
             createUserId: project.createUserId,
             createTime: createTimeAsTime,
             updateTime: createTimeAsTime,
-            getTime: createTimeAsTime,
-            partIdList: project.partIdList,
-            typePartIdList: project.typePartIdList,
+            commitId: emptyCommitId,
           }),
           getTime: createTimeAsTime,
         },
@@ -779,8 +816,7 @@ const projectDataToProjectSnapshot = (document: ProjectData): Project => ({
   createTime: firestoreTimestampToTime(document.createTime),
   createUserId: document.createUserId,
   updateTime: firestoreTimestampToTime(document.updateTime),
-  partIdList: document.partIdList,
-  typePartIdList: document.typePartIdList,
+  commitId: document.commitId,
 });
 
 export const createIdea = async (
@@ -817,11 +853,10 @@ export const createIdea = async (
     projectId: createIdeaParameter.projectId,
     createTime,
     commentList: [],
-    childIdeaIdList: [],
-    commitIdList: [],
+    // TODO パラメーターに親アイデアを受け取る
+    parentIdeaId: null,
     state: IdeaState.Creating,
     updateTime: createTime,
-    tagList: [],
   };
   const writeResult = await database
     .collection("idea")
@@ -879,8 +914,10 @@ const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
   createTime: firestoreTimestampToTime(ideaDocument.createTime),
   state: ideaDocument.state,
   commentList: ideaDocument.commentList,
-  childIdeaList: ideaDocument.childIdeaIdList,
-  commitIdList: ideaDocument.commitIdList,
+  parentIdeaId:
+    ideaDocument.parentIdeaId === null
+      ? Maybe.Nothing()
+      : Maybe.Just(ideaDocument.parentIdeaId),
   updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
 });
 
@@ -917,18 +954,12 @@ export const addComment = async ({
     commentList: newCommentList,
     updateTime: admin.firestore.Timestamp.fromDate(updateTime),
   };
-  const newIdeaDataWithNewTagList: IdeaData = {
-    ...newIdeaData,
-    tagList: [],
-  };
   const writeResult = await database
     .collection("idea")
     .doc(ideaId)
-    .update(newIdeaDataWithNewTagList);
+    .update(newIdeaData);
   return Maybe.Just({
-    dataMaybe: Maybe.Just(
-      ideaDocumentToIdeaSnapshot(newIdeaDataWithNewTagList)
-    ),
+    dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(newIdeaData)),
     getTime: firestoreTimestampToTime(writeResult.writeTime),
   });
 };
@@ -951,12 +982,13 @@ export const getCommit = async (
             ideaId: document.ideaId,
             projectId: document.projectId,
             projectName: document.projectName,
-            projectIcon: document.projectIcon,
+            projectIcon: document.projectIconHash,
             partHashList: document.partHashList,
             typePartHashList: [],
-            projectImage: document.projectImage,
+            projectImage: document.projectImageHash,
             updateTime: firestoreTimestampToTime(document.updateTime),
             isDraft: document.isDraft,
+            createTime: firestoreTimestampToTime(document.createTime),
           }),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
   };
