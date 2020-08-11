@@ -5,7 +5,7 @@
     "lib": ["ES2019", "DOM"],
     "strict": true,
     "removeComments": true,
-    "newLine": "LF",
+    "newLine": "lf",
     "outDir": "../distribution",
     "forceConsistentCasingInFileNames": true
   }

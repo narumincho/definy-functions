@@ -3,14 +3,12 @@
     "source": ".",
     "ignore": [
       "**/.git/**",
-      "**/.cache/**",
-      "**/.idea/**",
-      "**/.vscode/**",
+      "**/.github/**",
       "**/source/**",
       "**/node_modules/**",
       ".gitignore",
       "firebase.json",
-      "tsconfig.json"
+      "LICENSE"
     ]
   }
 }
