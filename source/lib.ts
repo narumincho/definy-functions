@@ -135,6 +135,7 @@ type ProjectData = {
   readonly updateTime: admin.firestore.Timestamp;
   readonly createUserId: UserId;
   readonly commitId: CommitId;
+  readonly rootIdeaId: IdeaId;
 };
 
 type IdeaData = {
@@ -724,6 +725,7 @@ export const createProject = async (
         createTime,
         updateTime: createTime,
         commitId: emptyCommitId,
+        rootIdeaId,
       };
 
       await database.collection("project").doc(projectId).create(project);
@@ -738,6 +740,7 @@ export const createProject = async (
             createTime: createTimeAsTime,
             updateTime: createTimeAsTime,
             commitId: emptyCommitId,
+            rootIdeaId,
           }),
           getTime: createTimeAsTime,
         },
@@ -817,6 +820,7 @@ const projectDataToProjectSnapshot = (document: ProjectData): Project => ({
   createUserId: document.createUserId,
   updateTime: firestoreTimestampToTime(document.updateTime),
   commitId: document.commitId,
+  rootIdeaId: document.rootIdeaId,
 });
 
 export const createIdea = async (
@@ -834,15 +838,11 @@ export const createIdea = async (
   if (validIdeaName === null) {
     return Maybe.Nothing();
   }
-  // プロジェクトの存在確認
-  if (
-    !(
-      await database
-        .collection("project")
-        .doc(createIdeaParameter.projectId)
-        .get()
-    ).exists
-  ) {
+  // 親アイデアの取得
+  const parentIdea = (
+    await database.collection("idea").doc(createIdeaParameter.parentId).get()
+  ).data();
+  if (parentIdea === undefined) {
     return Maybe.Nothing();
   }
   const createTime = admin.firestore.Timestamp.now();
@@ -850,11 +850,10 @@ export const createIdea = async (
   const ideaData: IdeaData = {
     name: validIdeaName,
     createUserId: userIdAndUserResource.value.id,
-    projectId: createIdeaParameter.projectId,
+    projectId: parentIdea.projectId,
     createTime,
     commentList: [],
-    // TODO パラメーターに親アイデアを受け取る
-    parentIdeaId: null,
+    parentIdeaId: createIdeaParameter.parentId,
     state: IdeaState.Creating,
     updateTime: createTime,
   };
