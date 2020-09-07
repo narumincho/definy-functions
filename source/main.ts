@@ -222,7 +222,7 @@ export const api = functions
       return;
     }
     const result = await callApiFunction(
-      request.path.split("/")[1],
+      request.path.split("/")[2],
       request.body as Buffer
     );
     if (result === undefined) {
