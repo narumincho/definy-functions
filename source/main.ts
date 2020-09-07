@@ -304,6 +304,13 @@ const callApiFunction = async (
         IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
       ).encode(ideaSnapshotAndIdList);
     }
+    case "getIdeaByParentIdeaId": {
+      const ideaId = IdeaId.codec.decode(0, binary).result;
+      const ideaList = await lib.getIdeaByParentIdeaId(ideaId);
+      return List.codec(
+        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
+      ).encode(ideaList);
+    }
     case "createIdea": {
       const createIdeaParameter = CreateIdeaParameter.codec.decode(0, binary)
         .result;

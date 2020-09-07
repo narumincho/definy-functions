@@ -906,6 +906,23 @@ export const getIdeaSnapshotAndIdListByProjectId = async (
   return list;
 };
 
+export const getIdeaByParentIdeaId = async (
+  ideaId: IdeaId
+): Promise<ReadonlyArray<IdAndData<IdeaId, Resource<Idea>>>> => {
+  const querySnapshot = await database
+    .collection("idea")
+    .where("parentIdeaId", "==", ideaId)
+    .get();
+  const getTime = firestoreTimestampToTime(querySnapshot.readTime);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    data: {
+      dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(doc.data())),
+      getTime,
+    },
+  }));
+};
+
 const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
   name: ideaDocument.name,
   createUserId: ideaDocument.createUserId,
