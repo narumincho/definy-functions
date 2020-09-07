@@ -371,10 +371,14 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
 /*
  * =====================================================================
  *               logInCallback ソーシャルログインのコールバック先
+ *        https://definy.app/logInCallback/Google?state=&code=
+ *                            など
+ *            ↓ Firebase Hosting firebase.json rewrite
+ *                Cloud Functions for Firebase / logInCallback
  * =====================================================================
  */
 export const logInCallback = functions.https.onRequest((request, response) => {
-  const openIdConnectProvider = request.path.substring(1);
+  const openIdConnectProvider = request.path.split("/")[2];
   const code: unknown = request.query.code;
   const state: unknown = request.query.state;
   if (!(typeof code === "string" && typeof state === "string")) {

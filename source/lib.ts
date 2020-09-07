@@ -298,8 +298,7 @@ const createRandomId = (): string => {
 const logInRedirectUri = (
   openIdConnectProvider: OpenIdConnectProvider
 ): string =>
-  "https://us-central1-definy-lang.cloudfunctions.net/logInCallback/" +
-  (openIdConnectProvider as string);
+  "https://definy.app/logInCallback/" + (openIdConnectProvider as string);
 
 /**
  * OpenIdConnectで外部ログインからの受け取ったデータを元に,ログインする前のURLとアクセストークンを返す
