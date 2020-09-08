@@ -32,8 +32,8 @@ import { URL } from "url";
  * =====================================================================
  *                  html ブラウザが最初にリクエストするところ
  *
- *                   https://definy-lang.web.app/
- * https://definy-lang.web.app/project/077bc302f933bd78e20efd6fd3fa657e
+ *                       https://definy.app/
+ *    https://definy.app/project/077bc302f933bd78e20efd6fd3fa657e
  *                             など
  *            ↓ Firebase Hosting firebase.json rewrite
  *                Cloud Functions for Firebase / html
@@ -211,8 +211,11 @@ const esperantoDescription = (location: Location): string => {
 
 /*
  * =====================================================================
- *               Api データを取得したり変更したりする
- *    https://us-central1-definy-lang.cloudfunctions.net/api
+ *               api データを取得したり変更したりする
+ *              https://definy.app/api/getProject
+ *                            など
+ *            ↓ Firebase Hosting firebase.json rewrite
+ *                Cloud Functions for Firebase / api
  * =====================================================================
  */
 export const api = functions
@@ -365,8 +368,17 @@ const allowOrigin = (httpHeaderOrigin: unknown): string => {
   return common.releaseOrigin;
 };
 
+/*
+ * =====================================================================
+ *               logInCallback ソーシャルログインのコールバック先
+ *        https://definy.app/logInCallback/Google?state=&code=
+ *                            など
+ *            ↓ Firebase Hosting firebase.json rewrite
+ *                Cloud Functions for Firebase / logInCallback
+ * =====================================================================
+ */
 export const logInCallback = functions.https.onRequest((request, response) => {
-  const openIdConnectProvider = request.path.substring(1);
+  const openIdConnectProvider = request.path.split("/")[2];
   const code: unknown = request.query.code;
   const state: unknown = request.query.state;
   if (!(typeof code === "string" && typeof state === "string")) {

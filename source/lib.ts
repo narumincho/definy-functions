@@ -232,28 +232,15 @@ export const requestLogInUrl = async (
   requestLogInUrlRequestData: RequestLogInUrlRequestData
 ): Promise<URL> => {
   const state = createRandomId();
-  await createStateDocument(
-    requestLogInUrlRequestData,
-    state,
-    admin.firestore.Timestamp.now()
-  );
+  await database.collection("openConnectState").doc(state).create({
+    createTime: admin.firestore.Timestamp.now(),
+    urlData: requestLogInUrlRequestData.urlData,
+    provider: requestLogInUrlRequestData.openIdConnectProvider,
+  });
   return logInUrlFromOpenIdConnectProviderAndState(
     requestLogInUrlRequestData.openIdConnectProvider,
     state
   );
-};
-
-const createStateDocument = async (
-  requestLogInUrlRequestData: RequestLogInUrlRequestData,
-  state: string,
-  createdAt: admin.firestore.Timestamp
-): Promise<void> => {
-  const stateData: StateData = {
-    createTime: createdAt,
-    urlData: requestLogInUrlRequestData.urlData,
-    provider: requestLogInUrlRequestData.openIdConnectProvider,
-  };
-  await database.collection("openConnectState").doc(state).create(stateData);
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
@@ -311,8 +298,7 @@ const createRandomId = (): string => {
 const logInRedirectUri = (
   openIdConnectProvider: OpenIdConnectProvider
 ): string =>
-  "https://us-central1-definy-lang.cloudfunctions.net/logInCallback/" +
-  (openIdConnectProvider as string);
+  "https://definy.app/logInCallback/" + (openIdConnectProvider as string);
 
 /**
  * OpenIdConnectで外部ログインからの受け取ったデータを元に,ログインする前のURLとアクセストークンを返す
@@ -327,13 +313,16 @@ export const logInCallback = async (
 ): Promise<{ urlData: UrlData; accessToken: AccessToken }> => {
   const documentReference = database.collection("openConnectState").doc(state);
   const stateData = (await documentReference.get()).data();
-  if (stateData === undefined || stateData.provider !== openIdConnectProvider) {
-    throw new Error(
-      "Definy do not generate state. openIdConnectProvider=" +
-        (openIdConnectProvider as string)
-    );
+  if (stateData === undefined) {
+    throw new Error("Definy do not generate state.");
   }
   documentReference.delete();
+  if (stateData.provider !== openIdConnectProvider) {
+    throw new Error("Definy do not generate state.");
+  }
+  if (stateData.createTime.toMillis() + 60 * 1000 < new Date().getTime()) {
+    throw new Error("state is too old.");
+  }
   const providerUserData: ProviderUserData = await getUserDataFromCode(
     openIdConnectProvider,
     code
