@@ -9,7 +9,7 @@ import * as stream from "stream";
 import type * as typedFirestore from "typed-admin-firestore";
 import * as util from "definy-core/source/util";
 import {
-  AccessToken,
+  AccountToken,
   AddCommentParameter,
   Comment,
   Commit,
@@ -310,7 +310,7 @@ export const logInCallback = async (
   openIdConnectProvider: OpenIdConnectProvider,
   code: string,
   state: string
-): Promise<{ urlData: UrlData; accessToken: AccessToken }> => {
+): Promise<{ urlData: UrlData; accessToken: AccountToken }> => {
   const documentReference = database.collection("openConnectState").doc(state);
   const stateData = (await documentReference.get()).data();
   if (stateData === undefined) {
@@ -501,7 +501,7 @@ viewer {
 const createUser = async (
   providerUserData: ProviderUserData,
   provider: OpenIdConnectProvider
-): Promise<AccessToken> => {
+): Promise<AccountToken> => {
   const imageHash = await getAndSaveUserImage(providerUserData.imageUrl);
   const createTime = admin.firestore.Timestamp.now();
   const accessTokenData = issueAccessToken();
@@ -589,11 +589,11 @@ const getOpenIdConnectClientId = (
  * アクセストークンを生成する
  */
 const issueAccessToken = (): {
-  accessToken: AccessToken;
+  accessToken: AccountToken;
   accessTokenHash: AccessTokenHash;
   issueTime: admin.firestore.Timestamp;
 } => {
-  const accessToken = crypto.randomBytes(32).toString("hex") as AccessToken;
+  const accessToken = crypto.randomBytes(32).toString("hex") as AccountToken;
   return {
     accessToken,
     accessTokenHash: hashAccessToken(accessToken),
@@ -601,16 +601,16 @@ const issueAccessToken = (): {
   };
 };
 
-const hashAccessToken = (accessToken: AccessToken): AccessTokenHash =>
+const hashAccessToken = (accountToken: AccountToken): AccessTokenHash =>
   crypto
     .createHash("sha256")
-    .update(new Uint8Array(AccessToken.codec.encode(accessToken)))
+    .update(new Uint8Array(AccountToken.codec.encode(accountToken)))
     .digest("hex") as AccessTokenHash;
 
 export const getUserByAccessToken = async (
-  accessToken: AccessToken
+  accountToken: AccountToken
 ): Promise<Maybe<IdAndData<UserId, Resource<User>>>> => {
-  const accessTokenHash: AccessTokenHash = hashAccessToken(accessToken);
+  const accessTokenHash: AccessTokenHash = hashAccessToken(accountToken);
   const querySnapshot = await database
     .collection("user")
     .where("accessTokenHash", "==", accessTokenHash)
@@ -660,10 +660,10 @@ export const getUser = async (userId: UserId): Promise<Resource<User>> => {
 };
 
 export const createProject = async (
-  accessToken: AccessToken,
+  accountToken: AccountToken,
   projectName: string
 ): Promise<Maybe<IdAndData<ProjectId, Resource<Project>>>> => {
-  const userDataMaybe = await getUserByAccessToken(accessToken);
+  const userDataMaybe = await getUserByAccessToken(accountToken);
   switch (userDataMaybe._) {
     case "Just": {
       const userData = userDataMaybe.value;
@@ -816,7 +816,7 @@ export const createIdea = async (
   createIdeaParameter: CreateIdeaParameter
 ): Promise<Maybe<IdAndData<IdeaId, Resource<Idea>>>> => {
   const userIdAndUserResource = await getUserByAccessToken(
-    createIdeaParameter.accessToken
+    createIdeaParameter.userToken
   );
   if (userIdAndUserResource._ === "Nothing") {
     return Maybe.Nothing();
@@ -927,7 +927,7 @@ const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
 });
 
 export const addComment = async ({
-  accessToken,
+  userToken,
   comment,
   ideaId,
 }: AddCommentParameter): Promise<Maybe<Resource<Idea>>> => {
@@ -935,7 +935,7 @@ export const addComment = async ({
   if (validComment === null) {
     return Maybe.Nothing();
   }
-  const user = await getUserByAccessToken(accessToken);
+  const user = await getUserByAccessToken(userToken);
   if (user._ === "Nothing") {
     return Maybe.Nothing();
   }

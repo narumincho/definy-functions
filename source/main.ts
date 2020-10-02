@@ -1,31 +1,8 @@
 import * as common from "definy-core";
+import * as data from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as lib from "./lib";
 import * as nHtml from "@narumincho/html";
-import {
-  AccessToken,
-  AddCommentParameter,
-  Binary,
-  Commit,
-  CommitId,
-  CreateIdeaParameter,
-  CreateProjectParameter,
-  IdAndData,
-  Idea,
-  IdeaId,
-  ImageToken,
-  Language,
-  List,
-  Location,
-  Maybe,
-  Project,
-  ProjectId,
-  RequestLogInUrlRequestData,
-  Resource,
-  String,
-  User,
-  UserId,
-} from "definy-core/source/data";
 import { URL } from "url";
 
 /*
@@ -44,10 +21,10 @@ export const html = functions.https.onRequest(async (request, response) => {
   const requestUrl = new URL(
     "https://" + request.hostname + request.originalUrl
   );
-  const urlData = common.urlDataAndAccessTokenFromUrl(requestUrl).urlData;
-  const normalizedUrl = common.urlDataAndAccessTokenToUrl(
+  const urlData = common.urlDataAndAccountTokenFromUrl(requestUrl).urlData;
+  const normalizedUrl = common.urlDataAndAccountTokenToUrl(
     urlData,
-    Maybe.Nothing()
+    data.Maybe.Nothing()
   );
   console.log("requestUrl", requestUrl.toString());
   console.log("normalizedUrl", normalizedUrl.toString());
@@ -103,7 +80,7 @@ export const html = functions.https.onRequest(async (request, response) => {
   );
 });
 
-const coverImageUrl = async (location: Location): Promise<URL> => {
+const coverImageUrl = async (location: data.Location): Promise<URL> => {
   switch (location._) {
     case "Project": {
       const projectResource = await lib.getProject(location.projectId);
@@ -118,7 +95,7 @@ const coverImageUrl = async (location: Location): Promise<URL> => {
   return new URL((common.releaseOrigin as string) + "/icon");
 };
 
-const loadingMessage = (language: Language): string => {
+const loadingMessage = (language: data.Language): string => {
   switch (language) {
     case "English":
       return "Loading Definy ...";
@@ -129,7 +106,10 @@ const loadingMessage = (language: Language): string => {
   }
 };
 
-const description = (language: Language, location: Location): string => {
+const description = (
+  language: data.Language,
+  location: data.Location
+): string => {
   switch (language) {
     case "English":
       return englishDescription(location);
@@ -140,7 +120,7 @@ const description = (language: Language, location: Location): string => {
   }
 };
 
-const englishDescription = (location: Location): string => {
+const englishDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "Definy is Web App for Web App.";
@@ -163,7 +143,7 @@ const englishDescription = (location: Location): string => {
   }
 };
 
-const japaneseDescription = (location: Location): string => {
+const japaneseDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "ブラウザで動作する革新的なプログラミング言語!";
@@ -186,7 +166,7 @@ const japaneseDescription = (location: Location): string => {
   }
 };
 
-const esperantoDescription = (location: Location): string => {
+const esperantoDescription = (location: data.Location): string => {
   switch (location._) {
     case "Home":
       return "Noviga programlingvo, kiu funkcias en la retumilo";
@@ -241,97 +221,123 @@ const callApiFunction = async (
 ): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
     case "checkConnection": {
-      return String.codec.encode("ok");
+      return data.String.codec.encode("ok");
     }
     case "requestLogInUrl": {
-      const requestData = RequestLogInUrlRequestData.codec.decode(0, binary)
-        .result;
+      const requestData = data.RequestLogInUrlRequestData.codec.decode(
+        0,
+        binary
+      ).result;
       const url = await lib.requestLogInUrl(requestData);
-      return String.codec.encode(url.toString());
+      return data.String.codec.encode(url.toString());
     }
     case "getUserByAccessToken": {
-      return Maybe.codec(
-        IdAndData.codec(UserId.codec, Resource.codec(User.codec))
+      return data.Maybe.codec(
+        data.IdAndData.codec(
+          data.UserId.codec,
+          data.Resource.codec(data.User.codec)
+        )
       ).encode(
         await lib.getUserByAccessToken(
-          AccessToken.codec.decode(0, binary).result
+          data.AccountToken.codec.decode(0, binary).result
         )
       );
     }
     case "getUser": {
       const userResource = await lib.getUser(
-        UserId.codec.decode(0, binary).result
+        data.UserId.codec.decode(0, binary).result
       );
-      return Resource.codec(User.codec).encode(userResource);
+      return data.Resource.codec(data.User.codec).encode(userResource);
     }
     case "getImageFile": {
       const imageBinary = await lib.getFile(
-        ImageToken.codec.decode(0, binary).result
+        data.ImageToken.codec.decode(0, binary).result
       );
-      return Maybe.codec(Binary.codec).encode(imageBinary);
+      return data.Maybe.codec(data.Binary.codec).encode(imageBinary);
     }
     case "createProject": {
-      const createProjectParameter = CreateProjectParameter.codec.decode(
+      const createProjectParameter = data.CreateProjectParameter.codec.decode(
         0,
         binary
       ).result;
       const newProject = await lib.createProject(
-        createProjectParameter.accessToken,
+        createProjectParameter.userToken,
         createProjectParameter.projectName
       );
-      return Maybe.codec(
-        IdAndData.codec(ProjectId.codec, Resource.codec(Project.codec))
+      return data.Maybe.codec(
+        data.IdAndData.codec(
+          data.ProjectId.codec,
+          data.Resource.codec(data.Project.codec)
+        )
       ).encode(newProject);
     }
     case "getAllProject": {
-      return List.codec(
-        IdAndData.codec(ProjectId.codec, Resource.codec(Project.codec))
+      return data.List.codec(
+        data.IdAndData.codec(
+          data.ProjectId.codec,
+          data.Resource.codec(data.Project.codec)
+        )
       ).encode(await lib.getTop50Project());
     }
     case "getProject": {
-      const projectId = ProjectId.codec.decode(0, binary).result;
+      const projectId = data.ProjectId.codec.decode(0, binary).result;
       const projectMaybe = await lib.getProject(projectId);
-      return Resource.codec(Project.codec).encode(projectMaybe);
+      return data.Resource.codec(data.Project.codec).encode(projectMaybe);
     }
     case "getIdea": {
-      const ideaId = IdeaId.codec.decode(0, binary).result;
+      const ideaId = data.IdeaId.codec.decode(0, binary).result;
       const ideaMaybe = await lib.getIdea(ideaId);
-      return Resource.codec(Idea.codec).encode(ideaMaybe);
+      return data.Resource.codec(data.Idea.codec).encode(ideaMaybe);
     }
     case "getIdeaAndIdListByProjectId": {
-      const projectId = ProjectId.codec.decode(0, binary).result;
+      const projectId = data.ProjectId.codec.decode(0, binary).result;
       const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
         projectId
       );
-      return List.codec(
-        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
+      return data.List.codec(
+        data.IdAndData.codec(
+          data.IdeaId.codec,
+          data.Resource.codec(data.Idea.codec)
+        )
       ).encode(ideaSnapshotAndIdList);
     }
     case "getIdeaByParentIdeaId": {
-      const ideaId = IdeaId.codec.decode(0, binary).result;
+      const ideaId = data.IdeaId.codec.decode(0, binary).result;
       const ideaList = await lib.getIdeaByParentIdeaId(ideaId);
-      return List.codec(
-        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
+      return data.List.codec(
+        data.IdAndData.codec(
+          data.IdeaId.codec,
+          data.Resource.codec(data.Idea.codec)
+        )
       ).encode(ideaList);
     }
     case "createIdea": {
-      const createIdeaParameter = CreateIdeaParameter.codec.decode(0, binary)
-        .result;
+      const createIdeaParameter = data.CreateIdeaParameter.codec.decode(
+        0,
+        binary
+      ).result;
       const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return Maybe.codec(
-        IdAndData.codec(IdeaId.codec, Resource.codec(Idea.codec))
+      return data.Maybe.codec(
+        data.IdAndData.codec(
+          data.IdeaId.codec,
+          data.Resource.codec(data.Idea.codec)
+        )
       ).encode(ideaSnapshotAndIdMaybe);
     }
     case "addComment": {
-      const addCommentParameter = AddCommentParameter.codec.decode(0, binary)
-        .result;
+      const addCommentParameter = data.AddCommentParameter.codec.decode(
+        0,
+        binary
+      ).result;
       const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return Maybe.codec(Resource.codec(Idea.codec)).encode(ideaSnapshotMaybe);
+      return data.Maybe.codec(data.Resource.codec(data.Idea.codec)).encode(
+        ideaSnapshotMaybe
+      );
     }
     case "getCommit": {
-      const suggestionId = CommitId.codec.decode(0, binary).result;
+      const suggestionId = data.CommitId.codec.decode(0, binary).result;
       const suggestionMaybe = await lib.getCommit(suggestionId);
-      return Resource.codec(Commit.codec).encode(suggestionMaybe);
+      return data.Resource.codec(data.Commit.codec).encode(suggestionMaybe);
     }
   }
 };
@@ -386,13 +392,13 @@ export const logInCallback = functions.https.onRequest((request, response) => {
     response.redirect(
       301,
       common
-        .urlDataAndAccessTokenToUrl(
+        .urlDataAndAccountTokenToUrl(
           {
             clientMode: "Release",
-            location: Location.Home,
+            location: data.Location.Home,
             language: common.defaultLanguage,
           },
-          Maybe.Nothing()
+          data.Maybe.Nothing()
         )
         .toString()
     );
@@ -405,9 +411,9 @@ export const logInCallback = functions.https.onRequest((request, response) => {
         response.redirect(
           301,
           common
-            .urlDataAndAccessTokenToUrl(
+            .urlDataAndAccountTokenToUrl(
               result.urlData,
-              Maybe.Just(result.accessToken)
+              data.Maybe.Just(result.accessToken)
             )
             .toString()
         );
@@ -424,6 +430,6 @@ export const getFile = functions.https.onRequest((request, response) => {
     return;
   }
   lib
-    .getReadableStream(request.path.split("/")[1] as ImageToken)
+    .getReadableStream(request.path.split("/")[1] as data.ImageToken)
     .pipe(response);
 });
