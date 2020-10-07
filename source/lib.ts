@@ -33,6 +33,9 @@ import {
   Resource,
   Time,
   Type,
+  TypeAttribute,
+  TypeParameter,
+  TypePart,
   TypePartBody,
   TypePartHash,
   TypePartId,
@@ -186,10 +189,16 @@ type TypePartData = {
   readonly name: string;
   /** 説明文 */
   readonly description: string;
+  /** 型パーツの特殊扱いの種類 */
+  readonly attribute: Maybe<TypeAttribute>;
+  /** 型パラメーター */
+  readonly typeParameterList: ReadonlyArray<TypeParameter>;
   /** 定義本体 */
   readonly typePartBody: TypePartBody;
   /** 所属しているプロジェクト */
-  readonly projectId: Expr;
+  readonly projectId: ProjectId;
+  /** 作成したコミット */
+  readonly createCommitId: CommitId;
   /** 作成日時 */
   readonly createTime: admin.firestore.Timestamp;
   /** プロジェクト内での参照ID */
@@ -996,5 +1005,40 @@ export const getCommit = async (
             createTime: firestoreTimestampToTime(document.createTime),
           }),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
+  };
+};
+
+export const getTypePartByProjectId = async (
+  projectId: ProjectId
+): Promise<Resource<ReadonlyArray<IdAndData<TypePartHash, TypePart>>>> => {
+  const documentSnapshot = await database
+    .collection("typePart")
+    .where("projectId", "==", projectId)
+    .get();
+  return {
+    dataMaybe: Maybe.Just(
+      documentSnapshot.docs.map((document) =>
+        typePartFromDBType(document.id as TypePartHash, document.data())
+      )
+    ),
+    getTime: firestoreTimestampToTime(documentSnapshot.readTime),
+  };
+};
+
+const typePartFromDBType = (
+  typePartHash: TypePartHash,
+  typePartData: TypePartData
+): IdAndData<TypePartHash, TypePart> => {
+  return {
+    id: typePartHash,
+    data: {
+      name: typePartData.name,
+      description: typePartData.description,
+      attribute: typePartData.attribute,
+      typeParameterList: typePartData.typeParameterList,
+      body: typePartData.typePartBody,
+      projectId: typePartData.projectId,
+      createCommitId: typePartData.createCommitId,
+    },
   };
 };

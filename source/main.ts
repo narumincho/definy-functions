@@ -187,6 +187,15 @@ const callApiFunction = async (
       const suggestionMaybe = await lib.getCommit(suggestionId);
       return data.Resource.codec(data.Commit.codec).encode(suggestionMaybe);
     }
+    case "getTypePartByProjectId": {
+      const projectId = data.ProjectId.codec.decode(0, binary).result;
+      const result = await lib.getTypePartByProjectId(projectId);
+      return data.Resource.codec(
+        data.List.codec(
+          data.IdAndData.codec(data.TypePartHash.codec, data.TypePart.codec)
+        )
+      ).encode(result);
+    }
   }
 };
 
