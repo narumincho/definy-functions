@@ -2,7 +2,6 @@ import * as core from "definy-core";
 import * as data from "definy-core/source/data";
 import * as lib from "./lib";
 import * as nHtml from "@narumincho/html";
-import { URL as NodeUrl } from "url";
 
 export const html = async (
   urlData: data.UrlData,
@@ -13,13 +12,13 @@ export const html = async (
   iconPath: ["icon"],
   coverImageUrl: await coverImageUrl(urlData.location),
   description: description(urlData.language, urlData.location),
-  scriptUrlList: [new NodeUrl((core.releaseOrigin as string) + "/main.js")],
+  scriptUrlList: [new URL((core.releaseOrigin as string) + "/main.js")],
   styleUrlList: [],
   javaScriptMustBeAvailable: true,
-  twitterCard: nHtml.TwitterCard.SummaryCard,
-  language: nHtml.Language.Japanese,
+  twitterCard: "SummaryCard",
+  language: "Japanese",
   manifestPath: ["manifest.json"],
-  url: new NodeUrl(normalizedUrl.toString()),
+  url: new URL(normalizedUrl.toString()),
   style: `/*
     Hack typeface https://github.com/source-foundry/Hack
     License: https://github.com/source-foundry/Hack/blob/master/LICENSE.md
@@ -50,19 +49,19 @@ body {
   body: [nHtml.div({}, loadingMessage(urlData.language))],
 });
 
-const coverImageUrl = async (location: data.Location): Promise<NodeUrl> => {
+const coverImageUrl = async (location: data.Location): Promise<URL> => {
   switch (location._) {
     case "Project": {
       const projectResource = await lib.getProject(location.projectId);
       if (projectResource.dataMaybe._ === "Just") {
-        return new NodeUrl(
+        return new URL(
           "https://us-central1-definy-lang.cloudfunctions.net/getFile/" +
             (projectResource.dataMaybe.value.imageHash as string)
         );
       }
     }
   }
-  return new NodeUrl((core.releaseOrigin as string) + "/icon");
+  return new URL((core.releaseOrigin as string) + "/icon");
 };
 
 const loadingMessage = (language: data.Language): string => {
