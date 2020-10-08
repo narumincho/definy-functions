@@ -826,23 +826,21 @@ const projectDataToProjectSnapshot = (document: ProjectData): Project => ({
 });
 
 export const createIdea = async (
-  createIdeaParameter: CreateIdeaParameter
+  parameter: CreateIdeaParameter
 ): Promise<Maybe<IdAndData<IdeaId, Resource<Idea>>>> => {
   const userIdAndUserResource = await getUserByAccountToken(
-    createIdeaParameter.userToken
+    parameter.accountToken
   );
   if (userIdAndUserResource._ === "Nothing") {
     return Maybe.Nothing();
   }
-  const validIdeaName = common.stringToValidIdeaName(
-    createIdeaParameter.ideaName
-  );
+  const validIdeaName = common.stringToValidIdeaName(parameter.ideaName);
   if (validIdeaName === null) {
     return Maybe.Nothing();
   }
   // 親アイデアの取得
   const parentIdea = (
-    await database.collection("idea").doc(createIdeaParameter.parentId).get()
+    await database.collection("idea").doc(parameter.parentId).get()
   ).data();
   if (parentIdea === undefined) {
     return Maybe.Nothing();
@@ -855,7 +853,7 @@ export const createIdea = async (
     projectId: parentIdea.projectId,
     createTime,
     commentList: [],
-    parentIdeaId: createIdeaParameter.parentId,
+    parentIdeaId: parameter.parentId,
     state: IdeaState.Creating,
     updateTime: createTime,
   };
@@ -939,21 +937,19 @@ const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
   updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
 });
 
-export const addComment = async ({
-  userToken,
-  comment,
-  ideaId,
-}: AddCommentParameter): Promise<Maybe<Resource<Idea>>> => {
-  const validComment = common.stringToValidComment(comment);
+export const addComment = async (
+  parameter: AddCommentParameter
+): Promise<Maybe<Resource<Idea>>> => {
+  const validComment = common.stringToValidComment(parameter.comment);
   if (validComment === null) {
     return Maybe.Nothing();
   }
-  const user = await getUserByAccountToken(userToken);
+  const user = await getUserByAccountToken(parameter.accountToken);
   if (user._ === "Nothing") {
     return Maybe.Nothing();
   }
   const ideaDocument = (
-    await database.collection("idea").doc(ideaId).get()
+    await database.collection("idea").doc(parameter.ideaId).get()
   ).data();
   if (ideaDocument === undefined) {
     return Maybe.Nothing();
@@ -974,7 +970,7 @@ export const addComment = async ({
   };
   const writeResult = await database
     .collection("idea")
-    .doc(ideaId)
+    .doc(parameter.ideaId)
     .update(newIdeaData);
   return Maybe.Just({
     dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(newIdeaData)),

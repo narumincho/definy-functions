@@ -109,7 +109,7 @@ const callApiFunction = async (
         binary
       ).result;
       const newProject = await lib.createProject(
-        createProjectParameter.userToken,
+        createProjectParameter.accountToken,
         createProjectParameter.projectName
       );
       return data.Maybe.codec(
