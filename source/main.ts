@@ -86,7 +86,7 @@ const callApiFunction = async (
           data.Resource.codec(data.User.codec)
         )
       ).encode(
-        await lib.getUserByAccessToken(
+        await lib.getUserByAccountToken(
           data.AccountToken.codec.decode(0, binary).result
         )
       );
@@ -195,6 +195,17 @@ const callApiFunction = async (
           data.IdAndData.codec(data.TypePartHash.codec, data.TypePart.codec)
         )
       ).encode(result);
+    }
+    case "addTypePart": {
+      return data.Resource.codec(
+        data.List.codec(
+          data.IdAndData.codec(data.TypePartHash.codec, data.TypePart.codec)
+        )
+      ).encode(
+        await lib.addTypePart(
+          data.AccountTokenAndProjectId.codec.decode(0, binary).result
+        )
+      );
     }
   }
 };
