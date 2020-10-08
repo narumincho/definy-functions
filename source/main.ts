@@ -57,6 +57,7 @@ export const api = functions
       request.body as Buffer
     );
     if (result === undefined) {
+      response.status(400);
       response.send("想定外のパスを受けとった request.path=" + request.path);
       return;
     }
@@ -79,7 +80,7 @@ const callApiFunction = async (
       const url = await lib.requestLogInUrl(requestData);
       return data.String.codec.encode(url.toString());
     }
-    case "getUserByAccessToken": {
+    case "getUserByAccountToken": {
       return data.Maybe.codec(
         data.IdAndData.codec(
           data.UserId.codec,
@@ -119,7 +120,7 @@ const callApiFunction = async (
         )
       ).encode(newProject);
     }
-    case "getAllProject": {
+    case "getTop50Project": {
       return data.List.codec(
         data.IdAndData.codec(
           data.ProjectId.codec,
