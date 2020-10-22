@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
+    "target": "ES2020",
     "module": "CommonJS",
-    "lib": ["ES2019", "DOM"],
+    "lib": ["ES2020", "DOM"],
     "strict": true,
     "removeComments": true,
     "newLine": "lf",
     "outDir": "../distribution",
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   }
 }
