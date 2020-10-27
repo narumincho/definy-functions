@@ -13,7 +13,7 @@ export const html = async (
   coverImageUrl: await coverImageUrl(urlData.location),
   description: description(urlData.language, urlData.location),
   scriptUrlList: [new URL((core.releaseOrigin as string) + "/main.js")],
-  styleUrlList: [],
+  styleUrlList: [new URL("https://definy.app/style.css")],
   javaScriptMustBeAvailable: true,
   twitterCard: "SummaryCard",
   language: "Japanese",
