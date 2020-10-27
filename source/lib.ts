@@ -84,7 +84,7 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     subCollections: Record<never, never>;
   };
   typePart: {
-    key: TypePartHash;
+    key: TypePartId;
     value: TypePartData;
     subCollections: Record<never, never>;
   };
@@ -202,8 +202,6 @@ type TypePartData = {
   readonly createCommitId: CommitId;
   /** 作成日時 */
   readonly createTime: admin.firestore.Timestamp;
-  /** プロジェクト内での参照ID */
-  readonly typePartId: TypePartId;
 };
 
 type ReleasePartData = {
@@ -1010,7 +1008,7 @@ export const getCommit = async (
 
 export const getTypePartByProjectId = async (
   projectId: ProjectId
-): Promise<Resource<ReadonlyArray<IdAndData<TypePartHash, TypePart>>>> => {
+): Promise<Resource<ReadonlyArray<IdAndData<TypePartId, TypePart>>>> => {
   const documentSnapshot = await database
     .collection("typePart")
     .where("projectId", "==", projectId)
@@ -1018,7 +1016,7 @@ export const getTypePartByProjectId = async (
   return {
     dataMaybe: Maybe.Just(
       documentSnapshot.docs.map((document) =>
-        typePartFromDBType(document.id as TypePartHash, document.data())
+        typePartFromDBType(document.id, document.data())
       )
     ),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
@@ -1027,7 +1025,7 @@ export const getTypePartByProjectId = async (
 
 export const addTypePart = async (
   accountTokenAndProjectId: AccountTokenAndProjectId
-): Promise<Resource<ReadonlyArray<IdAndData<TypePartHash, TypePart>>>> => {
+): Promise<Resource<ReadonlyArray<IdAndData<TypePartId, TypePart>>>> => {
   const userPromise = getUserByAccountToken(
     accountTokenAndProjectId.accountToken
   );
@@ -1052,31 +1050,19 @@ export const addTypePart = async (
     createCommitId: "c10b49a4cc73fa3900d44ddd6294a9b5" as CommitId,
     body: TypePartBody.Sum([]),
   };
-  const newTypePartAsBinary = new Uint8Array(
-    TypePart.codec.encode(newTypePart)
-  );
-  const newTypePartHash = createHashFromUint8Array(
-    newTypePartAsBinary
-  ) as TypePartHash;
   await database
     .collection("typePart")
-    .doc(newTypePartHash)
-    .set(
-      typePartToDBType(
-        newTypePart,
-        admin.firestore.Timestamp.now(),
-        createRandomId() as TypePartId
-      )
-    );
+    .doc(createRandomId() as TypePartId)
+    .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
   return getTypePartByProjectId(accountTokenAndProjectId.projectId);
 };
 
 const typePartFromDBType = (
-  typePartHash: TypePartHash,
+  typePartId: TypePartId,
   typePartData: TypePartData
-): IdAndData<TypePartHash, TypePart> => {
+): IdAndData<TypePartId, TypePart> => {
   return {
-    id: typePartHash,
+    id: typePartId,
     data: {
       name: typePartData.name,
       description: typePartData.description,
@@ -1091,8 +1077,7 @@ const typePartFromDBType = (
 
 const typePartToDBType = (
   typePart: TypePart,
-  createTime: admin.firestore.Timestamp,
-  typePartId: TypePartId
+  createTime: admin.firestore.Timestamp
 ): TypePartData => ({
   name: typePart.name,
   description: typePart.description,
@@ -1102,5 +1087,4 @@ const typePartToDBType = (
   createTime,
   projectId: typePart.projectId,
   typePartBody: typePart.body,
-  typePartId,
 });

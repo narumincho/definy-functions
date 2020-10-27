@@ -193,14 +193,14 @@ const callApiFunction = async (
       const result = await lib.getTypePartByProjectId(projectId);
       return data.Resource.codec(
         data.List.codec(
-          data.IdAndData.codec(data.TypePartHash.codec, data.TypePart.codec)
+          data.IdAndData.codec(data.TypePartId.codec, data.TypePart.codec)
         )
       ).encode(result);
     }
     case "addTypePart": {
       return data.Resource.codec(
         data.List.codec(
-          data.IdAndData.codec(data.TypePartHash.codec, data.TypePart.codec)
+          data.IdAndData.codec(data.TypePartId.codec, data.TypePart.codec)
         )
       ).encode(
         await lib.addTypePart(
