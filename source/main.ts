@@ -68,6 +68,7 @@ const callApiFunction = async (
   path: string,
   binary: Uint8Array
 ): Promise<ReadonlyArray<number> | undefined> => {
+  console.log("api function name ", path);
   switch (path) {
     case "checkConnection": {
       return data.String.codec.encode("ok");
