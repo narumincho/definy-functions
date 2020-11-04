@@ -5,6 +5,7 @@ import * as genHtml from "./html";
 import * as lib from "./lib";
 import * as nHtml from "@narumincho/html";
 
+console.log("versions", process.versions);
 /*
  * =====================================================================
  *                  html ブラウザが最初にリクエストするところ
@@ -52,10 +53,9 @@ export const api = functions
     if (supportCrossOriginResourceSharing(request, response)) {
       return;
     }
-    const result = await callApiFunction(
-      request.path.split("/")[2],
-      request.body as Buffer
-    );
+    const path = request.path.split("/")[2];
+    console.log("call api function!", request.connection.remoteAddress, path);
+    const result = await callApiFunction(path, request.body as Buffer);
     if (result === undefined) {
       response.status(400);
       response.send("想定外のパスを受けとった request.path=" + request.path);
@@ -68,7 +68,6 @@ const callApiFunction = async (
   path: string,
   binary: Uint8Array
 ): Promise<ReadonlyArray<number> | undefined> => {
-  console.log("api function name ", path);
   switch (path) {
     case "checkConnection": {
       return data.String.codec.encode("ok");
