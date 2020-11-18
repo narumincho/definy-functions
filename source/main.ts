@@ -1,5 +1,6 @@
+import * as apiCodec from "definy-core/source/api";
 import * as common from "definy-core";
-import * as data from "definy-core/source/data";
+import * as d from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as genHtml from "./html";
 import * as lib from "./lib";
@@ -25,7 +26,7 @@ export const html = functions.https.onRequest(async (request, response) => {
   const urlData = common.urlDataAndAccountTokenFromUrl(requestUrl).urlData;
   const normalizedUrl = common.urlDataAndAccountTokenToUrl(
     urlData,
-    data.Maybe.Nothing()
+    d.Maybe.Nothing()
   );
   console.log("requestUrl", requestUrl.toString());
   console.log("normalizedUrl", normalizedUrl.toString());
@@ -64,151 +65,81 @@ export const api = functions
     response.send(Buffer.from(result));
   });
 
-const callApiFunction = async (
+const callApiFromCodecAndFunction = <Request, Response>(
+  binary: Uint8Array,
+  codec: apiCodec.ApiCodec<Request, Response>,
+  func: (request: Request) => Promise<Response>
+): Promise<ReadonlyArray<number>> =>
+  func(codec.request.decode(0, binary).result).then((response) =>
+    codec.response.encode(response)
+  );
+
+const callApiFunction = (
   path: string,
   binary: Uint8Array
 ): Promise<ReadonlyArray<number> | undefined> => {
   switch (path) {
-    case "checkConnection": {
-      return data.String.codec.encode("ok");
-    }
     case "requestLogInUrl": {
-      const requestData = data.RequestLogInUrlRequestData.codec.decode(
-        0,
-        binary
-      ).result;
-      const url = await lib.requestLogInUrl(requestData);
-      return data.String.codec.encode(url.toString());
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.requestLogInUrl,
+        lib.requestLogInUrl
+      );
     }
     case "getUserByAccountToken": {
-      return data.Maybe.codec(
-        data.IdAndData.codec(
-          data.UserId.codec,
-          data.Resource.codec(data.User.codec)
-        )
-      ).encode(
-        await lib.getUserByAccountToken(
-          data.AccountToken.codec.decode(0, binary).result
-        )
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.getUserByAccountToken,
+        lib.getUserByAccountToken
       );
     }
     case "getUser": {
-      const userResource = await lib.getUser(
-        data.UserId.codec.decode(0, binary).result
-      );
-      return data.Resource.codec(data.User.codec).encode(userResource);
+      return callApiFromCodecAndFunction(binary, apiCodec.getUser, lib.getUser);
     }
     case "getImageFile": {
-      const imageBinary = await lib.getFile(
-        data.ImageToken.codec.decode(0, binary).result
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.getImageFile,
+        lib.getFile
       );
-      return data.Maybe.codec(data.Binary.codec).encode(imageBinary);
     }
     case "createProject": {
-      const createProjectParameter = data.CreateProjectParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const newProject = await lib.createProject(
-        createProjectParameter.accountToken,
-        createProjectParameter.projectName
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.createProject,
+        lib.createProject
       );
-      return data.Maybe.codec(
-        data.IdAndData.codec(
-          data.ProjectId.codec,
-          data.Resource.codec(data.Project.codec)
-        )
-      ).encode(newProject);
     }
     case "getTop50Project": {
-      return data.List.codec(
-        data.IdAndData.codec(
-          data.ProjectId.codec,
-          data.Resource.codec(data.Project.codec)
-        )
-      ).encode(await lib.getTop50Project());
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.getTop50Project,
+        lib.getTop50Project
+      );
     }
     case "getProject": {
-      const projectId = data.ProjectId.codec.decode(0, binary).result;
-      const projectMaybe = await lib.getProject(projectId);
-      return data.Resource.codec(data.Project.codec).encode(projectMaybe);
-    }
-    case "getIdea": {
-      const ideaId = data.IdeaId.codec.decode(0, binary).result;
-      const ideaMaybe = await lib.getIdea(ideaId);
-      return data.Resource.codec(data.Idea.codec).encode(ideaMaybe);
-    }
-    case "getIdeaAndIdListByProjectId": {
-      const projectId = data.ProjectId.codec.decode(0, binary).result;
-      const ideaSnapshotAndIdList = await lib.getIdeaSnapshotAndIdListByProjectId(
-        projectId
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.getProject,
+        lib.getProject
       );
-      return data.List.codec(
-        data.IdAndData.codec(
-          data.IdeaId.codec,
-          data.Resource.codec(data.Idea.codec)
-        )
-      ).encode(ideaSnapshotAndIdList);
-    }
-    case "getIdeaByParentIdeaId": {
-      const ideaId = data.IdeaId.codec.decode(0, binary).result;
-      const ideaList = await lib.getIdeaByParentIdeaId(ideaId);
-      return data.List.codec(
-        data.IdAndData.codec(
-          data.IdeaId.codec,
-          data.Resource.codec(data.Idea.codec)
-        )
-      ).encode(ideaList);
-    }
-    case "createIdea": {
-      const createIdeaParameter = data.CreateIdeaParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const ideaSnapshotAndIdMaybe = await lib.createIdea(createIdeaParameter);
-      return data.Maybe.codec(
-        data.IdAndData.codec(
-          data.IdeaId.codec,
-          data.Resource.codec(data.Idea.codec)
-        )
-      ).encode(ideaSnapshotAndIdMaybe);
-    }
-    case "addComment": {
-      const addCommentParameter = data.AddCommentParameter.codec.decode(
-        0,
-        binary
-      ).result;
-      const ideaSnapshotMaybe = await lib.addComment(addCommentParameter);
-      return data.Maybe.codec(data.Resource.codec(data.Idea.codec)).encode(
-        ideaSnapshotMaybe
-      );
-    }
-    case "getCommit": {
-      const suggestionId = data.CommitId.codec.decode(0, binary).result;
-      const suggestionMaybe = await lib.getCommit(suggestionId);
-      return data.Resource.codec(data.Commit.codec).encode(suggestionMaybe);
     }
     case "getTypePartByProjectId": {
-      const projectId = data.ProjectId.codec.decode(0, binary).result;
-      const result = await lib.getTypePartByProjectId(projectId);
-      return data.Resource.codec(
-        data.List.codec(
-          data.IdAndData.codec(data.TypePartId.codec, data.TypePart.codec)
-        )
-      ).encode(result);
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.getTypePartByProjectId,
+        lib.getTypePartByProjectId
+      );
     }
     case "addTypePart": {
-      return data.Resource.codec(
-        data.List.codec(
-          data.IdAndData.codec(data.TypePartId.codec, data.TypePart.codec)
-        )
-      ).encode(
-        await lib.addTypePart(
-          data.AccountTokenAndProjectId.codec.decode(0, binary).result
-        )
+      return callApiFromCodecAndFunction(
+        binary,
+        apiCodec.addTypePart,
+        lib.addTypePart
       );
     }
   }
+  return Promise.resolve(undefined);
 };
 
 /**
@@ -264,10 +195,10 @@ export const logInCallback = functions.https.onRequest((request, response) => {
         .urlDataAndAccountTokenToUrl(
           {
             clientMode: "Release",
-            location: data.Location.Home,
+            location: d.Location.Home,
             language: common.defaultLanguage,
           },
-          data.Maybe.Nothing()
+          d.Maybe.Nothing()
         )
         .toString()
     );
@@ -282,7 +213,7 @@ export const logInCallback = functions.https.onRequest((request, response) => {
           common
             .urlDataAndAccountTokenToUrl(
               result.urlData,
-              data.Maybe.Just(result.accessToken)
+              d.Maybe.Just(result.accessToken)
             )
             .toString()
         );
@@ -299,6 +230,6 @@ export const getFile = functions.https.onRequest((request, response) => {
     return;
   }
   lib
-    .getReadableStream(request.path.split("/")[1] as data.ImageToken)
+    .getReadableStream(request.path.split("/")[1] as d.ImageToken)
     .pipe(response);
 });

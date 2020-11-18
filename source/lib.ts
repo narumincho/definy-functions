@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import * as common from "definy-core";
 import * as crypto from "crypto";
+import * as d from "definy-core/source/data";
 import * as functions from "firebase-functions";
 import * as image from "./image";
 import * as jimp from "jimp";
@@ -8,42 +9,6 @@ import * as jsonWebToken from "jsonwebtoken";
 import * as stream from "stream";
 import type * as typedFirestore from "typed-admin-firestore";
 import * as util from "definy-core/source/util";
-import {
-  AccountToken,
-  AccountTokenAndProjectId,
-  AddCommentParameter,
-  Comment,
-  Commit,
-  CommitId,
-  CreateIdeaParameter,
-  Expr,
-  IdAndData,
-  Idea,
-  IdeaId,
-  IdeaState,
-  ImageToken,
-  Maybe,
-  OpenIdConnectProvider,
-  PartHash,
-  PartId,
-  Project,
-  ProjectId,
-  ReleasePartId,
-  ReleaseTypePartId,
-  RequestLogInUrlRequestData,
-  Resource,
-  Time,
-  Type,
-  TypeAttribute,
-  TypeParameter,
-  TypePart,
-  TypePartBody,
-  TypePartHash,
-  TypePartId,
-  UrlData,
-  User,
-  UserId,
-} from "definy-core/source/data";
 import axios, { AxiosResponse } from "axios";
 import { URL } from "url";
 
@@ -59,51 +24,26 @@ const database = (app.firestore() as unknown) as typedFirestore.Firestore<{
     subCollections: Record<never, never>;
   };
   user: {
-    key: UserId;
+    key: d.UserId;
     value: UserData;
     subCollections: Record<never, never>;
   };
   project: {
-    key: ProjectId;
+    key: d.ProjectId;
     value: ProjectData;
     subCollections: Record<never, never>;
   };
-  idea: {
-    key: IdeaId;
-    value: IdeaData;
-    subCollections: Record<never, never>;
-  };
-  commit: {
-    key: CommitId;
-    value: CommitData;
-    subCollections: Record<never, never>;
-  };
-  part: {
-    key: PartHash;
-    value: PartData;
-    subCollections: Record<never, never>;
-  };
   typePart: {
-    key: TypePartId;
+    key: d.TypePartId;
     value: TypePartData;
-    subCollections: Record<never, never>;
-  };
-  releasedPart: {
-    key: ReleasePartId;
-    value: ReleasePartData;
-    subCollections: Record<never, never>;
-  };
-  releaseTypePart: {
-    key: ReleaseTypePartId;
-    value: ReleaseTypePartData;
     subCollections: Record<never, never>;
   };
 }>;
 
 type StateData = {
   createTime: admin.firestore.Timestamp;
-  urlData: UrlData;
-  provider: OpenIdConnectProvider;
+  urlData: d.UrlData;
+  provider: d.OpenIdConnectProvider;
 };
 
 /**
@@ -115,7 +55,7 @@ type UserData = {
   /** アクセストークンを発行した日時 */
   readonly accessTokenIssueTime: admin.firestore.Timestamp;
   readonly createTime: admin.firestore.Timestamp;
-  readonly imageHash: ImageToken;
+  readonly imageHash: d.ImageToken;
   readonly introduction: string;
   /** ユーザー名 */
   readonly name: string;
@@ -126,63 +66,20 @@ type UserData = {
 /** ソーシャルログインに関する情報 */
 type OpenIdConnectProviderAndId = {
   /** プロバイダー (例: Google, GitHub) */
-  readonly provider: OpenIdConnectProvider;
+  readonly provider: d.OpenIdConnectProvider;
   /** プロバイダー内でのアカウントID */
   readonly idInProvider: string;
 };
 
 type ProjectData = {
   readonly name: string;
-  readonly iconHash: ImageToken;
-  readonly imageHash: ImageToken;
+  readonly iconHash: d.ImageToken;
+  readonly imageHash: d.ImageToken;
   readonly createTime: admin.firestore.Timestamp;
   readonly updateTime: admin.firestore.Timestamp;
-  readonly createUserId: UserId;
-  readonly commitId: CommitId;
-  readonly rootIdeaId: IdeaId;
-};
-
-type IdeaData = {
-  readonly commentList: ReadonlyArray<Comment>;
-  readonly createTime: admin.firestore.Timestamp;
-  readonly createUserId: UserId;
-  readonly name: string;
-  readonly parentIdeaId: IdeaId | null;
-  readonly projectId: ProjectId;
-  readonly state: IdeaState;
-  readonly updateTime: admin.firestore.Timestamp;
-};
-
-type CommitData = {
-  readonly createTime: admin.firestore.Timestamp;
-  readonly createUserId: UserId;
-  readonly description: string;
-  readonly ideaId: IdeaId;
-  readonly isDraft: boolean;
-  readonly partHashList: ReadonlyArray<PartHash>;
-  readonly projectIconHash: ImageToken;
-  readonly projectId: ProjectId;
-  readonly projectImageHash: ImageToken;
-  readonly projectName: string;
-  readonly typePartHashList: ReadonlyArray<TypePartHash>;
-  readonly updateTime: admin.firestore.Timestamp;
-};
-
-type PartData = {
-  /** パーツの名前 */
-  readonly name: string;
-  /** 説明文 */
-  readonly description: string;
-  /** 型 */
-  readonly type: Type;
-  /** 式 */
-  readonly expr: Expr;
-  /** 所属しているプロジェクト */
-  readonly projectId: Expr;
-  /** 作成日時 */
-  readonly createTime: admin.firestore.Timestamp;
-  /** プロジェクト内での参照ID */
-  readonly partId: PartId;
+  readonly createUserId: d.UserId;
+  readonly commitId: d.CommitId;
+  readonly rootIdeaId: d.IdeaId;
 };
 
 type TypePartData = {
@@ -191,54 +88,22 @@ type TypePartData = {
   /** 説明文 */
   readonly description: string;
   /** 型パーツの特殊扱いの種類 */
-  readonly attribute: Maybe<TypeAttribute>;
+  readonly attribute: d.Maybe<d.TypeAttribute>;
   /** 型パラメーター */
-  readonly typeParameterList: ReadonlyArray<TypeParameter>;
+  readonly typeParameterList: ReadonlyArray<d.TypeParameter>;
   /** 定義本体 */
-  readonly typePartBody: TypePartBody;
+  readonly typePartBody: d.TypePartBody;
   /** 所属しているプロジェクト */
-  readonly projectId: ProjectId;
+  readonly projectId: d.ProjectId;
   /** 作成したコミット */
-  readonly createCommitId: CommitId;
+  readonly createCommitId: d.CommitId;
   /** 作成日時 */
   readonly createTime: admin.firestore.Timestamp;
-};
-
-type ReleasePartData = {
-  /** パーツの名前 */
-  readonly name: string;
-  /** 説明文 */
-  readonly description: string;
-  /** 型 */
-  readonly type: Type;
-  /** 式 */
-  readonly expr: Expr;
-  /** 作成日時 */
-  readonly createTime: admin.firestore.Timestamp;
-  /** 更新日時 */
-  readonly updateTime: admin.firestore.Timestamp;
-  /** 作成したユーザー */
-  readonly createUserId: UserId;
-  /** 更新したユーザー */
-  readonly updateUserIdList: ReadonlyArray<UserId>;
-  /** 参照しているパーツ */
-  readonly partHash: PartHash;
-  /** 使用しているパーツ */
-  readonly usePartId: ReadonlyArray<ReleasePartId>;
-  /** 使用している型 (型の中で) */
-  readonly useTypePartIdInType: ReadonlyArray<ReleaseTypePartId>;
-  /** 使用している型 (式の中で) */
-  readonly useTypePartIdInExpr: ReadonlyArray<ReleaseTypePartId>;
-};
-
-type ReleaseTypePartData = {
-  /** 型パーツの名前 */
-  readonly name: string;
 };
 
 export const requestLogInUrl = async (
-  requestLogInUrlRequestData: RequestLogInUrlRequestData
-): Promise<URL> => {
+  requestLogInUrlRequestData: d.RequestLogInUrlRequestData
+): Promise<string> => {
   const state = createRandomId();
   await database.collection("openConnectState").doc(state).create({
     createTime: admin.firestore.Timestamp.now(),
@@ -248,11 +113,11 @@ export const requestLogInUrl = async (
   return logInUrlFromOpenIdConnectProviderAndState(
     requestLogInUrlRequestData.openIdConnectProvider,
     state
-  );
+  ).toString();
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
-  openIdConnectProvider: OpenIdConnectProvider,
+  openIdConnectProvider: d.OpenIdConnectProvider,
   state: string
 ): URL => {
   switch (openIdConnectProvider) {
@@ -281,8 +146,9 @@ const logInUrlFromOpenIdConnectProviderAndState = (
   }
 };
 
-const firestoreTimestampToTime = (timestamp: admin.firestore.Timestamp): Time =>
-  util.timeFromDate(timestamp.toDate());
+const firestoreTimestampToTime = (
+  timestamp: admin.firestore.Timestamp
+): d.Time => util.timeFromDate(timestamp.toDate());
 
 const createUrl = (
   originAndPath: string,
@@ -304,7 +170,7 @@ const createRandomId = (): string => {
 };
 
 const logInRedirectUri = (
-  openIdConnectProvider: OpenIdConnectProvider
+  openIdConnectProvider: d.OpenIdConnectProvider
 ): string =>
   "https://definy.app/logInCallback/" + (openIdConnectProvider as string);
 
@@ -315,10 +181,10 @@ const logInRedirectUri = (
  * @param state
  */
 export const logInCallback = async (
-  openIdConnectProvider: OpenIdConnectProvider,
+  openIdConnectProvider: d.OpenIdConnectProvider,
   code: string,
   state: string
-): Promise<{ urlData: UrlData; accessToken: AccountToken }> => {
+): Promise<{ urlData: d.UrlData; accessToken: d.AccountToken }> => {
   const documentReference = database.collection("openConnectState").doc(state);
   const stateData = (await documentReference.get()).data();
   if (stateData === undefined) {
@@ -375,7 +241,7 @@ type ProviderUserData = {
 };
 
 const getUserDataFromCode = (
-  openIdConnectProvider: OpenIdConnectProvider,
+  openIdConnectProvider: d.OpenIdConnectProvider,
   code: string
 ): Promise<ProviderUserData> => {
   switch (openIdConnectProvider) {
@@ -508,14 +374,14 @@ viewer {
 
 const createUser = async (
   providerUserData: ProviderUserData,
-  provider: OpenIdConnectProvider
-): Promise<AccountToken> => {
+  provider: d.OpenIdConnectProvider
+): Promise<d.AccountToken> => {
   const imageHash = await getAndSaveUserImage(providerUserData.imageUrl);
   const createTime = admin.firestore.Timestamp.now();
   const accessTokenData = issueAccessToken();
   await database
     .collection("user")
-    .doc(createRandomId() as UserId)
+    .doc(createRandomId() as d.UserId)
     .create({
       name: providerUserData.name,
       createTime,
@@ -531,7 +397,7 @@ const createUser = async (
   return accessTokenData.accessToken;
 };
 
-const getAndSaveUserImage = async (imageUrl: URL): Promise<ImageToken> => {
+const getAndSaveUserImage = async (imageUrl: URL): Promise<d.ImageToken> => {
   const response: AxiosResponse<Buffer> = await axios.get(imageUrl.toString(), {
     responseType: "arraybuffer",
   });
@@ -545,7 +411,7 @@ const getAndSaveUserImage = async (imageUrl: URL): Promise<ImageToken> => {
 /**
  * Firebase Cloud Storage にPNGファイルを保存する
  */
-const savePngFile = (binary: Uint8Array): Promise<ImageToken> =>
+const savePngFile = (binary: Uint8Array): Promise<d.ImageToken> =>
   saveFile(binary, "image/png");
 
 /**
@@ -554,7 +420,7 @@ const savePngFile = (binary: Uint8Array): Promise<ImageToken> =>
 const saveFile = async (
   binary: Uint8Array,
   mimeType: string
-): Promise<ImageToken> => {
+): Promise<d.ImageToken> => {
   const hash = createImageTokenFromUint8ArrayAndMimeType(binary, mimeType);
   const file = storageDefaultBucket.file(hash);
   await file.save(binary, { contentType: mimeType });
@@ -564,12 +430,12 @@ const saveFile = async (
 export const createImageTokenFromUint8ArrayAndMimeType = (
   binary: Uint8Array,
   mimeType: string
-): ImageToken =>
+): d.ImageToken =>
   crypto
     .createHash("sha256")
     .update(binary)
     .update(mimeType, "utf8")
-    .digest("hex") as ImageToken;
+    .digest("hex") as d.ImageToken;
 
 const createHashFromUint8Array = (binary: Uint8Array): string =>
   crypto.createHash("sha256").update(binary).digest("hex");
@@ -578,7 +444,7 @@ const createHashFromUint8Array = (binary: Uint8Array): string =>
  * OpenIdConnectのclientSecretはfirebaseの環境変数に設定されている
  */
 const getOpenIdConnectClientSecret = (
-  openIdConnectProvider: OpenIdConnectProvider
+  openIdConnectProvider: d.OpenIdConnectProvider
 ): string => {
   return functions.config().openidconnectclientsecret[
     openIdConnectProvider.toLowerCase()
@@ -586,7 +452,7 @@ const getOpenIdConnectClientSecret = (
 };
 
 const getOpenIdConnectClientId = (
-  openIdConnectProvider: OpenIdConnectProvider
+  openIdConnectProvider: d.OpenIdConnectProvider
 ): string => {
   switch (openIdConnectProvider) {
     case "Google":
@@ -600,11 +466,11 @@ const getOpenIdConnectClientId = (
  * アクセストークンを生成する
  */
 const issueAccessToken = (): {
-  accessToken: AccountToken;
+  accessToken: d.AccountToken;
   accessTokenHash: AccessTokenHash;
   issueTime: admin.firestore.Timestamp;
 } => {
-  const accessToken = crypto.randomBytes(32).toString("hex") as AccountToken;
+  const accessToken = crypto.randomBytes(32).toString("hex") as d.AccountToken;
   return {
     accessToken,
     accessTokenHash: hashAccessToken(accessToken),
@@ -612,15 +478,15 @@ const issueAccessToken = (): {
   };
 };
 
-const hashAccessToken = (accountToken: AccountToken): AccessTokenHash =>
+const hashAccessToken = (accountToken: d.AccountToken): AccessTokenHash =>
   crypto
     .createHash("sha256")
-    .update(new Uint8Array(AccountToken.codec.encode(accountToken)))
+    .update(new Uint8Array(d.AccountToken.codec.encode(accountToken)))
     .digest("hex") as AccessTokenHash;
 
 export const getUserByAccountToken = async (
-  accountToken: AccountToken
-): Promise<Maybe<IdAndData<UserId, Resource<User>>>> => {
+  accountToken: d.AccountToken
+): Promise<d.Maybe<d.IdAndData<d.UserId, d.User>>> => {
   const accessTokenHash: AccessTokenHash = hashAccessToken(accountToken);
   const querySnapshot = await database
     .collection("user")
@@ -629,21 +495,18 @@ export const getUserByAccountToken = async (
   const getTime = firestoreTimestampToTime(querySnapshot.readTime);
   const userDataDocs = querySnapshot.docs;
   if (userDataDocs.length !== 1) {
-    return Maybe.Nothing();
+    return d.Maybe.Nothing();
   }
   const queryDocumentSnapshot = userDataDocs[0];
   const userData = queryDocumentSnapshot.data();
 
-  return Maybe.Just({
-    id: queryDocumentSnapshot.id as UserId,
+  return d.Maybe.Just({
+    id: queryDocumentSnapshot.id as d.UserId,
     data: {
-      dataMaybe: Maybe.Just({
-        name: userData.name,
-        imageHash: userData.imageHash,
-        introduction: userData.introduction,
-        createTime: firestoreTimestampToTime(userData.createTime),
-      }),
-      getTime,
+      name: userData.name,
+      imageHash: userData.imageHash,
+      introduction: userData.introduction,
+      createTime: firestoreTimestampToTime(userData.createTime),
     },
   });
 };
@@ -653,14 +516,16 @@ export const getUserByAccountToken = async (
  * Nothingだった場合は指定したIDのユーザーがなかったということ
  * @param userId ユーザーID
  */
-export const getUser = async (userId: UserId): Promise<Resource<User>> => {
+export const getUser = async (
+  userId: d.UserId
+): Promise<d.WithTime<d.Maybe<d.User>>> => {
   const documentSnapshot = await database.collection("user").doc(userId).get();
   const userData = documentSnapshot.data();
   return {
-    dataMaybe:
+    data:
       userData === undefined
-        ? Maybe.Nothing()
-        : Maybe.Just({
+        ? d.Maybe.Nothing()
+        : d.Maybe.Just({
             name: userData.name,
             imageHash: userData.imageHash,
             introduction: userData.introduction,
@@ -671,52 +536,25 @@ export const getUser = async (userId: UserId): Promise<Resource<User>> => {
 };
 
 export const createProject = async (
-  accountToken: AccountToken,
-  projectName: string
-): Promise<Maybe<IdAndData<ProjectId, Resource<Project>>>> => {
-  const userDataMaybe = await getUserByAccountToken(accountToken);
+  parameter: d.CreateProjectParameter
+): Promise<d.Maybe<d.IdAndData<d.ProjectId, d.Project>>> => {
+  const userDataMaybe = await getUserByAccountToken(parameter.accountToken);
   switch (userDataMaybe._) {
     case "Just": {
       const userData = userDataMaybe.value;
       const normalizedProjectName = common.stringToValidProjectName(
-        projectName
+        parameter.projectName
       );
       const projectNameWithDefault =
         normalizedProjectName === null ? "?" : normalizedProjectName;
-      const projectId = createRandomId() as ProjectId;
+      const projectId = createRandomId() as d.ProjectId;
       const iconAndImage = await image.createProjectIconAndImage();
       const iconHashPromise = savePngFile(iconAndImage.icon);
       const imageHashPromise = savePngFile(iconAndImage.image);
       const createTime = admin.firestore.Timestamp.now();
       const createTimeAsTime = firestoreTimestampToTime(createTime);
-      const rootIdeaId = createRandomId() as IdeaId;
-      const emptyCommitId = createRandomId() as CommitId;
-      const iconHash = await iconHashPromise;
-      const imageHash = await imageHashPromise;
-      await database.collection("idea").doc(rootIdeaId).create({
-        name: "root idea",
-        commentList: [],
-        createTime,
-        createUserId: userData.id,
-        parentIdeaId: null,
-        projectId,
-        state: IdeaState.Creating,
-        updateTime: createTime,
-      });
-      await database.collection("commit").doc(emptyCommitId).create({
-        isDraft: false,
-        createUserId: userData.id,
-        description: "initial commit",
-        ideaId: rootIdeaId,
-        partHashList: [],
-        typePartHashList: [],
-        projectIconHash: iconHash,
-        projectImageHash: imageHash,
-        createTime,
-        projectId,
-        projectName: projectNameWithDefault,
-        updateTime: createTime,
-      });
+      const rootIdeaId = createRandomId() as d.IdeaId;
+      const emptyCommitId = createRandomId() as d.CommitId;
       const project: ProjectData = {
         name: projectNameWithDefault,
         iconHash: await iconHashPromise,
@@ -729,90 +567,84 @@ export const createProject = async (
       };
 
       await database.collection("project").doc(projectId).create(project);
-      return Maybe.Just<IdAndData<ProjectId, Resource<Project>>>({
+      return d.Maybe.Just<d.IdAndData<d.ProjectId, d.Project>>({
         id: projectId,
         data: {
-          dataMaybe: Maybe.Just<Project>({
-            name: project.name,
-            iconHash: project.iconHash,
-            imageHash: project.imageHash,
-            createUserId: project.createUserId,
-            createTime: createTimeAsTime,
-            updateTime: createTimeAsTime,
-            commitId: emptyCommitId,
-            rootIdeaId,
-          }),
-          getTime: createTimeAsTime,
+          name: project.name,
+          iconHash: project.iconHash,
+          imageHash: project.imageHash,
+          createUserId: project.createUserId,
+          createTime: createTimeAsTime,
+          updateTime: createTimeAsTime,
+          commitId: emptyCommitId,
+          rootIdeaId,
         },
       });
     }
     case "Nothing": {
-      return Maybe.Nothing();
+      return d.Maybe.Nothing();
     }
   }
 };
 
-export const getReadableStream = (imageToken: ImageToken): stream.Readable =>
+export const getReadableStream = (imageToken: d.ImageToken): stream.Readable =>
   storageDefaultBucket.file(imageToken).createReadStream();
 
 export const getFile = async (
-  imageToken: ImageToken
-): Promise<Maybe<Uint8Array>> => {
+  imageToken: d.ImageToken
+): Promise<Uint8Array> => {
   const file = storageDefaultBucket.file(imageToken);
   const downloadResponse: Buffer | undefined = (await file.download())[0];
-  return downloadResponse === undefined
-    ? Maybe.Nothing()
-    : Maybe.Just(downloadResponse);
+  if (downloadResponse === undefined) {
+    throw new Error("Received an unknown Image Token. token =" + imageToken);
+  }
+  return downloadResponse;
 };
 
 export const getTop50Project = async (): Promise<
-  ReadonlyArray<IdAndData<ProjectId, Resource<Project>>>
+  d.WithTime<ReadonlyArray<d.IdAndData<d.ProjectId, d.Project>>>
 > => {
   const querySnapshot: typedFirestore.QuerySnapshot<
-    ProjectId,
+    d.ProjectId,
     ProjectData
   > = await database.collection("project").limit(50).get();
   const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
-    ProjectId,
+    d.ProjectId,
     ProjectData
   >> = querySnapshot.docs;
-  const resultList: Array<IdAndData<ProjectId, Resource<Project>>> = [];
   const getTime = firestoreTimestampToTime(querySnapshot.readTime);
-  for (const document of documentList) {
-    resultList.push({
+  return {
+    data: documentList.map((document) => ({
       id: document.id,
-      data: {
-        dataMaybe: Maybe.Just(projectDataToProjectSnapshot(document.data())),
-        getTime,
-      },
-    });
-  }
-  return resultList;
+      data: projectDataToProjectSnapshot(document.data()),
+    })),
+    getTime,
+  };
 };
 
 /**
  * プロジェクトのスナップショットを取得する.
  * Nothingだった場合は指定したIDのプロジェクトがなかったということ
- * @param projectId プロジェクトID
+ * @param d.ProjectId プロジェクトID
  */
 export const getProject = async (
-  projectId: ProjectId
-): Promise<Resource<Project>> => {
+  projectId: d.ProjectId
+): Promise<d.WithTime<d.Maybe<d.Project>>> => {
   const documentSnapshot = await database
     .collection("project")
     .doc(projectId)
     .get();
   const document = documentSnapshot.data();
   return {
-    dataMaybe:
+    data:
       document === undefined
-        ? Maybe.Nothing()
-        : Maybe.Just<Project>(projectDataToProjectSnapshot(document)),
+        ? d.Maybe.Nothing()
+        : d.Maybe.Just<d.Project>(projectDataToProjectSnapshot(document)),
     getTime: firestoreTimestampToTime(documentSnapshot.readTime),
   };
 };
 
-const projectDataToProjectSnapshot = (document: ProjectData): Project => ({
+const projectDataToProjectSnapshot = (document: ProjectData): d.Project => ({
   name: document.name,
   iconHash: document.iconHash,
   imageHash: document.imageHash,
@@ -823,198 +655,17 @@ const projectDataToProjectSnapshot = (document: ProjectData): Project => ({
   rootIdeaId: document.rootIdeaId,
 });
 
-export const createIdea = async (
-  parameter: CreateIdeaParameter
-): Promise<Maybe<IdAndData<IdeaId, Resource<Idea>>>> => {
-  const userIdAndUserResource = await getUserByAccountToken(
-    parameter.accountToken
-  );
-  if (userIdAndUserResource._ === "Nothing") {
-    return Maybe.Nothing();
-  }
-  const validIdeaName = common.stringToValidIdeaName(parameter.ideaName);
-  if (validIdeaName === null) {
-    return Maybe.Nothing();
-  }
-  // 親アイデアの取得
-  const parentIdea = (
-    await database.collection("idea").doc(parameter.parentId).get()
-  ).data();
-  if (parentIdea === undefined) {
-    return Maybe.Nothing();
-  }
-  const createTime = admin.firestore.Timestamp.now();
-  const ideaId = createRandomId() as IdeaId;
-  const ideaData: IdeaData = {
-    name: validIdeaName,
-    createUserId: userIdAndUserResource.value.id,
-    projectId: parentIdea.projectId,
-    createTime,
-    commentList: [],
-    parentIdeaId: parameter.parentId,
-    state: IdeaState.Creating,
-    updateTime: createTime,
-  };
-  const writeResult = await database
-    .collection("idea")
-    .doc(ideaId)
-    .create(ideaData);
-
-  return Maybe.Just({
-    id: ideaId,
-    data: {
-      dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(ideaData)),
-      getTime: firestoreTimestampToTime(writeResult.writeTime),
-    },
-  });
-};
-
-export const getIdea = async (ideaId: IdeaId): Promise<Resource<Idea>> => {
-  const documentSnapshot = await database.collection("idea").doc(ideaId).get();
-  const getTime = firestoreTimestampToTime(documentSnapshot.readTime);
-  const document = documentSnapshot.data();
-  return {
-    dataMaybe:
-      document === undefined
-        ? Maybe.Nothing()
-        : Maybe.Just(ideaDocumentToIdeaSnapshot(document)),
-    getTime,
-  };
-};
-
-export const getIdeaSnapshotAndIdListByProjectId = async (
-  projectId: ProjectId
-): Promise<ReadonlyArray<IdAndData<IdeaId, Resource<Idea>>>> => {
-  const querySnapshot = await database
-    .collection("idea")
-    .where("projectId", "==", projectId)
-    .get();
-  const list: Array<IdAndData<IdeaId, Resource<Idea>>> = [];
-  const getTime = firestoreTimestampToTime(querySnapshot.readTime);
-  for (const document of querySnapshot.docs) {
-    const documentValue = document.data();
-    list.push({
-      id: document.id,
-      data: {
-        dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(documentValue)),
-        getTime,
-      },
-    });
-  }
-  return list;
-};
-
-export const getIdeaByParentIdeaId = async (
-  ideaId: IdeaId
-): Promise<ReadonlyArray<IdAndData<IdeaId, Resource<Idea>>>> => {
-  const querySnapshot = await database
-    .collection("idea")
-    .where("parentIdeaId", "==", ideaId)
-    .get();
-  const getTime = firestoreTimestampToTime(querySnapshot.readTime);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    data: {
-      dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(doc.data())),
-      getTime,
-    },
-  }));
-};
-
-const ideaDocumentToIdeaSnapshot = (ideaDocument: IdeaData): Idea => ({
-  name: ideaDocument.name,
-  createUserId: ideaDocument.createUserId,
-  projectId: ideaDocument.projectId,
-  createTime: firestoreTimestampToTime(ideaDocument.createTime),
-  state: ideaDocument.state,
-  commentList: ideaDocument.commentList,
-  parentIdeaId:
-    ideaDocument.parentIdeaId === null
-      ? Maybe.Nothing()
-      : Maybe.Just(ideaDocument.parentIdeaId),
-  updateTime: firestoreTimestampToTime(ideaDocument.updateTime),
-});
-
-export const addComment = async (
-  parameter: AddCommentParameter
-): Promise<Maybe<Resource<Idea>>> => {
-  const validComment = common.stringToValidComment(parameter.comment);
-  if (validComment === null) {
-    return Maybe.Nothing();
-  }
-  const user = await getUserByAccountToken(parameter.accountToken);
-  if (user._ === "Nothing") {
-    return Maybe.Nothing();
-  }
-  const ideaDocument = (
-    await database.collection("idea").doc(parameter.ideaId).get()
-  ).data();
-  if (ideaDocument === undefined) {
-    return Maybe.Nothing();
-  }
-  const updateTime = new Date();
-  const newCommentList: ReadonlyArray<Comment> = [
-    ...ideaDocument.commentList,
-    {
-      body: validComment,
-      createTime: util.timeFromDate(updateTime),
-      createUserId: user.value.id,
-    },
-  ];
-  const newIdeaData: IdeaData = {
-    ...ideaDocument,
-    commentList: newCommentList,
-    updateTime: admin.firestore.Timestamp.fromDate(updateTime),
-  };
-  const writeResult = await database
-    .collection("idea")
-    .doc(parameter.ideaId)
-    .update(newIdeaData);
-  return Maybe.Just({
-    dataMaybe: Maybe.Just(ideaDocumentToIdeaSnapshot(newIdeaData)),
-    getTime: firestoreTimestampToTime(writeResult.writeTime),
-  });
-};
-
-export const getCommit = async (
-  commitId: CommitId
-): Promise<Resource<Commit>> => {
-  const documentSnapshot = await database
-    .collection("commit")
-    .doc(commitId)
-    .get();
-  const document = documentSnapshot.data();
-  return {
-    dataMaybe:
-      document === undefined
-        ? Maybe.Nothing()
-        : Maybe.Just<Commit>({
-            description: document.description,
-            createUserId: document.createUserId,
-            ideaId: document.ideaId,
-            projectId: document.projectId,
-            projectName: document.projectName,
-            projectIcon: document.projectIconHash,
-            partHashList: document.partHashList,
-            typePartHashList: [],
-            projectImage: document.projectImageHash,
-            updateTime: firestoreTimestampToTime(document.updateTime),
-            isDraft: document.isDraft,
-            createTime: firestoreTimestampToTime(document.createTime),
-          }),
-    getTime: firestoreTimestampToTime(documentSnapshot.readTime),
-  };
-};
-
 export const getTypePartByProjectId = async (
-  projectId: ProjectId
-): Promise<Resource<ReadonlyArray<IdAndData<TypePartId, TypePart>>>> => {
+  projectId: d.ProjectId
+): Promise<
+  d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
+> => {
   const documentSnapshot = await database
     .collection("typePart")
     .where("projectId", "==", projectId)
     .get();
   return {
-    dataMaybe: Maybe.Just(
+    data: d.Maybe.Just(
       documentSnapshot.docs.map((document) =>
         typePartFromDBType(document.id, document.data())
       )
@@ -1024,8 +675,10 @@ export const getTypePartByProjectId = async (
 };
 
 export const addTypePart = async (
-  accountTokenAndProjectId: AccountTokenAndProjectId
-): Promise<Resource<ReadonlyArray<IdAndData<TypePartId, TypePart>>>> => {
+  accountTokenAndProjectId: d.AccountTokenAndProjectId
+): Promise<
+  d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
+> => {
   const userPromise = getUserByAccountToken(
     accountTokenAndProjectId.accountToken
   );
@@ -1035,32 +688,32 @@ export const addTypePart = async (
     throw new Error("invalid account token");
   }
   const project = await projectPromise;
-  if (project.dataMaybe._ === "Nothing") {
+  if (project.data._ === "Nothing") {
     throw new Error("invalid project id");
   }
-  if (project.dataMaybe.value.createUserId !== user.value.id) {
-    throw new Error("user can not edit this project");
+  if (project.data.value.createUserId !== user.value.id) {
+    throw new Error("user can not edit this d.Project");
   }
-  const newTypePart: TypePart = {
+  const newTypePart: d.TypePart = {
     name: "NewType",
     description: "",
-    attribute: Maybe.Nothing(),
+    attribute: d.Maybe.Nothing(),
     projectId: accountTokenAndProjectId.projectId,
     typeParameterList: [],
-    createCommitId: "c10b49a4cc73fa3900d44ddd6294a9b5" as CommitId,
-    body: TypePartBody.Sum([]),
+    createCommitId: "c10b49a4cc73fa3900d44ddd6294a9b5" as d.CommitId,
+    body: d.TypePartBody.Sum([]),
   };
   await database
     .collection("typePart")
-    .doc(createRandomId() as TypePartId)
+    .doc(createRandomId() as d.TypePartId)
     .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
   return getTypePartByProjectId(accountTokenAndProjectId.projectId);
 };
 
 const typePartFromDBType = (
-  typePartId: TypePartId,
+  typePartId: d.TypePartId,
   typePartData: TypePartData
-): IdAndData<TypePartId, TypePart> => {
+): d.IdAndData<d.TypePartId, d.TypePart> => {
   return {
     id: typePartId,
     data: {
@@ -1076,7 +729,7 @@ const typePartFromDBType = (
 };
 
 const typePartToDBType = (
-  typePart: TypePart,
+  typePart: d.TypePart,
   createTime: admin.firestore.Timestamp
 ): TypePartData => ({
   name: typePart.name,
