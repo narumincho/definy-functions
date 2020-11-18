@@ -34,9 +34,11 @@ export const html = functions.https.onRequest(async (request, response) => {
     response.redirect(301, normalizedUrl.toString());
     return;
   }
-  response.status(200);
+  const htmlAndIsNotFound = await genHtml.html(urlData, normalizedUrl);
+
+  response.status(htmlAndIsNotFound.isNotFound ? 404 : 200);
   response.setHeader("content-type", "text/html");
-  response.send(nHtml.toString(await genHtml.html(urlData, normalizedUrl)));
+  response.send(nHtml.toString(htmlAndIsNotFound.html));
 });
 
 /*
