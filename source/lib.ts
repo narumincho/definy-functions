@@ -95,8 +95,6 @@ type TypePartData = {
   readonly typePartBody: d.TypePartBody;
   /** 所属しているプロジェクト */
   readonly projectId: d.ProjectId;
-  /** 作成したコミット */
-  readonly createCommitId: d.CommitId;
   /** 作成日時 */
   readonly createTime: admin.firestore.Timestamp;
 };
@@ -700,7 +698,6 @@ export const addTypePart = async (
     attribute: d.Maybe.Nothing(),
     projectId: accountTokenAndProjectId.projectId,
     typeParameterList: [],
-    createCommitId: "c10b49a4cc73fa3900d44ddd6294a9b5" as d.CommitId,
     body: d.TypePartBody.Sum([]),
   };
   await database
@@ -723,7 +720,6 @@ const typePartFromDBType = (
       typeParameterList: typePartData.typeParameterList,
       body: typePartData.typePartBody,
       projectId: typePartData.projectId,
-      createCommitId: typePartData.createCommitId,
     },
   };
 };
@@ -736,7 +732,6 @@ const typePartToDBType = (
   description: typePart.description,
   attribute: typePart.attribute,
   typeParameterList: typePart.typeParameterList,
-  createCommitId: typePart.createCommitId,
   createTime,
   projectId: typePart.projectId,
   typePartBody: typePart.body,
