@@ -53,10 +53,10 @@ const coverImageUrl = async (location: data.Location): Promise<URL> => {
   switch (location._) {
     case "Project": {
       const projectResource = await lib.getProject(location.projectId);
-      if (projectResource.dataMaybe._ === "Just") {
+      if (projectResource.data._ === "Just") {
         return new URL(
           "https://us-central1-definy-lang.cloudfunctions.net/getFile/" +
-            (projectResource.dataMaybe.value.imageHash as string)
+            (projectResource.data.value.imageHash as string)
         );
       }
     }
