@@ -6,7 +6,7 @@ import * as genHtml from "./html";
 import * as lib from "./lib";
 import * as nHtml from "@narumincho/html";
 
-console.log("versions", process.versions);
+console.log("versions", JSON.stringify(process.versions));
 /*
  * =====================================================================
  *                  html ブラウザが最初にリクエストするところ
@@ -67,14 +67,22 @@ export const api = functions
     response.send(Buffer.from(result));
   });
 
-const callApiFromCodecAndFunction = <Request, Response>(
+const callApiFromCodecAndFunction = async <Request, Response>(
+  apiName: string,
   binary: Uint8Array,
   codec: apiCodec.ApiCodec<Request, Response>,
   func: (request: Request) => Promise<Response>
-): Promise<ReadonlyArray<number>> =>
-  func(codec.request.decode(0, binary).result).then((response) =>
-    codec.response.encode(response)
+): Promise<ReadonlyArray<number>> => {
+  const request: Request = codec.request.decode(0, binary).result;
+  const response: Response = await func(codec.request.decode(0, binary).result);
+  console.log(
+    "call api",
+    apiName,
+    JSON.stringify(request),
+    JSON.stringify(response)
   );
+  return codec.response.encode(response);
+};
 
 const callApiFunction = (
   apiName: string,
@@ -83,6 +91,7 @@ const callApiFunction = (
   for (const [selectedApiName, selectedApiCodec] of Object.entries(apiCodec)) {
     if (apiName === selectedApiName) {
       return callApiFromCodecAndFunction(
+        selectedApiName,
         binary,
         selectedApiCodec as apiCodec.ApiCodec<unknown, unknown>,
         lib.apiFunc[selectedApiName as keyof typeof apiCodec] as (
