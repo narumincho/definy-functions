@@ -77,67 +77,17 @@ const callApiFromCodecAndFunction = <Request, Response>(
   );
 
 const callApiFunction = (
-  path: string,
+  apiName: string,
   binary: Uint8Array
 ): Promise<ReadonlyArray<number> | undefined> => {
-  switch (path) {
-    case "requestLogInUrl": {
+  for (const [selectedApiName, selectedApiCodec] of Object.entries(apiCodec)) {
+    if (apiName === selectedApiName) {
       return callApiFromCodecAndFunction(
         binary,
-        apiCodec.requestLogInUrl,
-        lib.requestLogInUrl
-      );
-    }
-    case "getUserByAccountToken": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.getUserByAccountToken,
-        lib.getUserByAccountToken
-      );
-    }
-    case "getUser": {
-      return callApiFromCodecAndFunction(binary, apiCodec.getUser, lib.getUser);
-    }
-    case "getImageFile": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.getImageFile,
-        lib.getFile
-      );
-    }
-    case "createProject": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.createProject,
-        lib.createProject
-      );
-    }
-    case "getTop50Project": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.getTop50Project,
-        lib.getTop50Project
-      );
-    }
-    case "getProject": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.getProject,
-        lib.getProject
-      );
-    }
-    case "getTypePartByProjectId": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.getTypePartByProjectId,
-        lib.getTypePartByProjectId
-      );
-    }
-    case "addTypePart": {
-      return callApiFromCodecAndFunction(
-        binary,
-        apiCodec.addTypePart,
-        lib.addTypePart
+        selectedApiCodec as apiCodec.ApiCodec<unknown, unknown>,
+        lib.apiFunc[selectedApiName as keyof typeof apiCodec] as (
+          request: unknown
+        ) => Promise<unknown>
       );
     }
   }

@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import * as apiCodec from "definy-core/source/api";
 import * as common from "definy-core";
 import * as crypto from "crypto";
 import * as d from "definy-core/source/data";
@@ -97,21 +98,6 @@ type TypePartData = {
   readonly projectId: d.ProjectId;
   /** 作成日時 */
   readonly createTime: admin.firestore.Timestamp;
-};
-
-export const requestLogInUrl = async (
-  requestLogInUrlRequestData: d.RequestLogInUrlRequestData
-): Promise<string> => {
-  const state = createRandomId();
-  await database.collection("openConnectState").doc(state).create({
-    createTime: admin.firestore.Timestamp.now(),
-    urlData: requestLogInUrlRequestData.urlData,
-    provider: requestLogInUrlRequestData.openIdConnectProvider,
-  });
-  return logInUrlFromOpenIdConnectProviderAndState(
-    requestLogInUrlRequestData.openIdConnectProvider,
-    state
-  ).toString();
 };
 
 const logInUrlFromOpenIdConnectProviderAndState = (
@@ -435,9 +421,6 @@ export const createImageTokenFromUint8ArrayAndMimeType = (
     .update(mimeType, "utf8")
     .digest("hex") as d.ImageToken;
 
-const createHashFromUint8Array = (binary: Uint8Array): string =>
-  crypto.createHash("sha256").update(binary).digest("hex");
-
 /**
  * OpenIdConnectのclientSecretはfirebaseの環境変数に設定されている
  */
@@ -482,165 +465,8 @@ const hashAccessToken = (accountToken: d.AccountToken): AccessTokenHash =>
     .update(new Uint8Array(d.AccountToken.codec.encode(accountToken)))
     .digest("hex") as AccessTokenHash;
 
-export const getUserByAccountToken = async (
-  accountToken: d.AccountToken
-): Promise<d.Maybe<d.IdAndData<d.UserId, d.User>>> => {
-  const accessTokenHash: AccessTokenHash = hashAccessToken(accountToken);
-  const querySnapshot = await database
-    .collection("user")
-    .where("accessTokenHash", "==", accessTokenHash)
-    .get();
-  const getTime = firestoreTimestampToTime(querySnapshot.readTime);
-  const userDataDocs = querySnapshot.docs;
-  if (userDataDocs.length !== 1) {
-    return d.Maybe.Nothing();
-  }
-  const queryDocumentSnapshot = userDataDocs[0];
-  const userData = queryDocumentSnapshot.data();
-
-  return d.Maybe.Just({
-    id: queryDocumentSnapshot.id as d.UserId,
-    data: {
-      name: userData.name,
-      imageHash: userData.imageHash,
-      introduction: userData.introduction,
-      createTime: firestoreTimestampToTime(userData.createTime),
-    },
-  });
-};
-
-/**
- * ユーザーのデータを取得する.
- * Nothingだった場合は指定したIDのユーザーがなかったということ
- * @param userId ユーザーID
- */
-export const getUser = async (
-  userId: d.UserId
-): Promise<d.WithTime<d.Maybe<d.User>>> => {
-  const documentSnapshot = await database.collection("user").doc(userId).get();
-  const userData = documentSnapshot.data();
-  return {
-    data:
-      userData === undefined
-        ? d.Maybe.Nothing()
-        : d.Maybe.Just({
-            name: userData.name,
-            imageHash: userData.imageHash,
-            introduction: userData.introduction,
-            createTime: firestoreTimestampToTime(userData.createTime),
-          }),
-    getTime: firestoreTimestampToTime(documentSnapshot.readTime),
-  };
-};
-
-export const createProject = async (
-  parameter: d.CreateProjectParameter
-): Promise<d.Maybe<d.IdAndData<d.ProjectId, d.Project>>> => {
-  const userDataMaybe = await getUserByAccountToken(parameter.accountToken);
-  switch (userDataMaybe._) {
-    case "Just": {
-      const userData = userDataMaybe.value;
-      const normalizedProjectName = common.stringToValidProjectName(
-        parameter.projectName
-      );
-      const projectNameWithDefault =
-        normalizedProjectName === null ? "?" : normalizedProjectName;
-      const projectId = createRandomId() as d.ProjectId;
-      const iconAndImage = await image.createProjectIconAndImage();
-      const iconHashPromise = savePngFile(iconAndImage.icon);
-      const imageHashPromise = savePngFile(iconAndImage.image);
-      const createTime = admin.firestore.Timestamp.now();
-      const createTimeAsTime = firestoreTimestampToTime(createTime);
-      const rootIdeaId = createRandomId() as d.IdeaId;
-      const emptyCommitId = createRandomId() as d.CommitId;
-      const project: ProjectData = {
-        name: projectNameWithDefault,
-        iconHash: await iconHashPromise,
-        imageHash: await imageHashPromise,
-        createUserId: userData.id,
-        createTime,
-        updateTime: createTime,
-        commitId: emptyCommitId,
-        rootIdeaId,
-      };
-
-      await database.collection("project").doc(projectId).create(project);
-      return d.Maybe.Just<d.IdAndData<d.ProjectId, d.Project>>({
-        id: projectId,
-        data: {
-          name: project.name,
-          iconHash: project.iconHash,
-          imageHash: project.imageHash,
-          createUserId: project.createUserId,
-          createTime: createTimeAsTime,
-          updateTime: createTimeAsTime,
-          commitId: emptyCommitId,
-          rootIdeaId,
-        },
-      });
-    }
-    case "Nothing": {
-      return d.Maybe.Nothing();
-    }
-  }
-};
-
 export const getReadableStream = (imageToken: d.ImageToken): stream.Readable =>
   storageDefaultBucket.file(imageToken).createReadStream();
-
-export const getFile = async (
-  imageToken: d.ImageToken
-): Promise<Uint8Array> => {
-  const file = storageDefaultBucket.file(imageToken);
-  const downloadResponse: Buffer | undefined = (await file.download())[0];
-  if (downloadResponse === undefined) {
-    throw new Error("Received an unknown Image Token. token =" + imageToken);
-  }
-  return downloadResponse;
-};
-
-export const getTop50Project = async (): Promise<
-  d.WithTime<ReadonlyArray<d.IdAndData<d.ProjectId, d.Project>>>
-> => {
-  const querySnapshot: typedFirestore.QuerySnapshot<
-    d.ProjectId,
-    ProjectData
-  > = await database.collection("project").limit(50).get();
-  const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
-    d.ProjectId,
-    ProjectData
-  >> = querySnapshot.docs;
-  const getTime = firestoreTimestampToTime(querySnapshot.readTime);
-  return {
-    data: documentList.map((document) => ({
-      id: document.id,
-      data: projectDataToProjectSnapshot(document.data()),
-    })),
-    getTime,
-  };
-};
-
-/**
- * プロジェクトのスナップショットを取得する.
- * Nothingだった場合は指定したIDのプロジェクトがなかったということ
- * @param d.ProjectId プロジェクトID
- */
-export const getProject = async (
-  projectId: d.ProjectId
-): Promise<d.WithTime<d.Maybe<d.Project>>> => {
-  const documentSnapshot = await database
-    .collection("project")
-    .doc(projectId)
-    .get();
-  const document = documentSnapshot.data();
-  return {
-    data:
-      document === undefined
-        ? d.Maybe.Nothing()
-        : d.Maybe.Just<d.Project>(projectDataToProjectSnapshot(document)),
-    getTime: firestoreTimestampToTime(documentSnapshot.readTime),
-  };
-};
 
 const projectDataToProjectSnapshot = (document: ProjectData): d.Project => ({
   name: document.name,
@@ -652,60 +478,6 @@ const projectDataToProjectSnapshot = (document: ProjectData): d.Project => ({
   commitId: document.commitId,
   rootIdeaId: document.rootIdeaId,
 });
-
-export const getTypePartByProjectId = async (
-  projectId: d.ProjectId
-): Promise<
-  d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
-> => {
-  const documentSnapshot = await database
-    .collection("typePart")
-    .where("projectId", "==", projectId)
-    .get();
-  return {
-    data: d.Maybe.Just(
-      documentSnapshot.docs.map((document) =>
-        typePartFromDBType(document.id, document.data())
-      )
-    ),
-    getTime: firestoreTimestampToTime(documentSnapshot.readTime),
-  };
-};
-
-export const addTypePart = async (
-  accountTokenAndProjectId: d.AccountTokenAndProjectId
-): Promise<
-  d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
-> => {
-  const userPromise = getUserByAccountToken(
-    accountTokenAndProjectId.accountToken
-  );
-  const projectPromise = getProject(accountTokenAndProjectId.projectId);
-  const user = await userPromise;
-  if (user._ === "Nothing") {
-    throw new Error("invalid account token");
-  }
-  const project = await projectPromise;
-  if (project.data._ === "Nothing") {
-    throw new Error("invalid project id");
-  }
-  if (project.data.value.createUserId !== user.value.id) {
-    throw new Error("user can not edit this d.Project");
-  }
-  const newTypePart: d.TypePart = {
-    name: "NewType",
-    description: "",
-    attribute: d.Maybe.Nothing(),
-    projectId: accountTokenAndProjectId.projectId,
-    typeParameterList: [],
-    body: d.TypePartBody.Sum([]),
-  };
-  await database
-    .collection("typePart")
-    .doc(createRandomId() as d.TypePartId)
-    .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
-  return getTypePartByProjectId(accountTokenAndProjectId.projectId);
-};
 
 const typePartFromDBType = (
   typePartId: d.TypePartId,
@@ -736,3 +508,350 @@ const typePartToDBType = (
   projectId: typePart.projectId,
   typePartBody: typePart.body,
 });
+
+type ApiCodecType = typeof apiCodec;
+
+type GetCodecType<codec> = codec extends d.Codec<infer t> ? t : never;
+
+export const apiFunc: {
+  [apiName in keyof ApiCodecType]: (
+    request: GetCodecType<ApiCodecType[apiName]["request"]>
+  ) => Promise<GetCodecType<ApiCodecType[apiName]["response"]>>;
+} = {
+  requestLogInUrl: async (requestLogInUrlRequestData) => {
+    const state = createRandomId();
+    await database.collection("openConnectState").doc(state).create({
+      createTime: admin.firestore.Timestamp.now(),
+      urlData: requestLogInUrlRequestData.urlData,
+      provider: requestLogInUrlRequestData.openIdConnectProvider,
+    });
+    return logInUrlFromOpenIdConnectProviderAndState(
+      requestLogInUrlRequestData.openIdConnectProvider,
+      state
+    ).toString();
+  },
+  getUserByAccountToken: async (accountToken) => {
+    const accessTokenHash: AccessTokenHash = hashAccessToken(accountToken);
+    const querySnapshot = await database
+      .collection("user")
+      .where("accessTokenHash", "==", accessTokenHash)
+      .get();
+    const userDataDocs = querySnapshot.docs;
+    if (userDataDocs.length !== 1) {
+      return d.Maybe.Nothing();
+    }
+    const queryDocumentSnapshot = userDataDocs[0];
+    const userData = queryDocumentSnapshot.data();
+
+    return d.Maybe.Just({
+      id: queryDocumentSnapshot.id as d.UserId,
+      data: {
+        name: userData.name,
+        imageHash: userData.imageHash,
+        introduction: userData.introduction,
+        createTime: firestoreTimestampToTime(userData.createTime),
+      },
+    });
+  },
+  getUser: async (userId) => {
+    const documentSnapshot = await database
+      .collection("user")
+      .doc(userId)
+      .get();
+    const userData = documentSnapshot.data();
+    return {
+      data:
+        userData === undefined
+          ? d.Maybe.Nothing()
+          : d.Maybe.Just({
+              name: userData.name,
+              imageHash: userData.imageHash,
+              introduction: userData.introduction,
+              createTime: firestoreTimestampToTime(userData.createTime),
+            }),
+      getTime: firestoreTimestampToTime(documentSnapshot.readTime),
+    };
+  },
+  createProject: async (
+    parameter: d.CreateProjectParameter
+  ): Promise<d.Maybe<d.IdAndData<d.ProjectId, d.Project>>> => {
+    const userDataMaybe = await apiFunc.getUserByAccountToken(
+      parameter.accountToken
+    );
+    switch (userDataMaybe._) {
+      case "Just": {
+        const userData = userDataMaybe.value;
+        const normalizedProjectName = common.stringToValidProjectName(
+          parameter.projectName
+        );
+        const projectNameWithDefault =
+          normalizedProjectName === null ? "?" : normalizedProjectName;
+        const projectId = createRandomId() as d.ProjectId;
+        const iconAndImage = await image.createProjectIconAndImage();
+        const iconHashPromise = savePngFile(iconAndImage.icon);
+        const imageHashPromise = savePngFile(iconAndImage.image);
+        const createTime = admin.firestore.Timestamp.now();
+        const createTimeAsTime = firestoreTimestampToTime(createTime);
+        const rootIdeaId = createRandomId() as d.IdeaId;
+        const emptyCommitId = createRandomId() as d.CommitId;
+        const project: ProjectData = {
+          name: projectNameWithDefault,
+          iconHash: await iconHashPromise,
+          imageHash: await imageHashPromise,
+          createUserId: userData.id,
+          createTime,
+          updateTime: createTime,
+          commitId: emptyCommitId,
+          rootIdeaId,
+        };
+
+        await database.collection("project").doc(projectId).create(project);
+        return d.Maybe.Just<d.IdAndData<d.ProjectId, d.Project>>({
+          id: projectId,
+          data: {
+            name: project.name,
+            iconHash: project.iconHash,
+            imageHash: project.imageHash,
+            createUserId: project.createUserId,
+            createTime: createTimeAsTime,
+            updateTime: createTimeAsTime,
+            commitId: emptyCommitId,
+            rootIdeaId,
+          },
+        });
+      }
+      case "Nothing": {
+        return d.Maybe.Nothing();
+      }
+    }
+  },
+  getTop50Project: async () => {
+    const querySnapshot: typedFirestore.QuerySnapshot<
+      d.ProjectId,
+      ProjectData
+    > = await database.collection("project").limit(50).get();
+    const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
+      d.ProjectId,
+      ProjectData
+    >> = querySnapshot.docs;
+    const getTime = firestoreTimestampToTime(querySnapshot.readTime);
+    return {
+      data: documentList.map((document) => ({
+        id: document.id,
+        data: projectDataToProjectSnapshot(document.data()),
+      })),
+      getTime,
+    };
+  },
+  getProject: async (projectId) => {
+    const documentSnapshot = await database
+      .collection("project")
+      .doc(projectId)
+      .get();
+    const document = documentSnapshot.data();
+    return {
+      data:
+        document === undefined
+          ? d.Maybe.Nothing()
+          : d.Maybe.Just<d.Project>(projectDataToProjectSnapshot(document)),
+      getTime: firestoreTimestampToTime(documentSnapshot.readTime),
+    };
+  },
+  getImageFile: async (imageToken) => {
+    const file = storageDefaultBucket.file(imageToken);
+    const downloadResponse: Buffer | undefined = (await file.download())[0];
+    if (downloadResponse === undefined) {
+      throw new Error("Received an unknown Image Token. token =" + imageToken);
+    }
+    return downloadResponse;
+  },
+  getTypePartByProjectId: async (projectId) => {
+    const documentSnapshot = await database
+      .collection("typePart")
+      .where("projectId", "==", projectId)
+      .get();
+    return {
+      data: d.Maybe.Just(
+        documentSnapshot.docs.map((document) =>
+          typePartFromDBType(document.id, document.data())
+        )
+      ),
+      getTime: firestoreTimestampToTime(documentSnapshot.readTime),
+    };
+  },
+  addTypePart: async (
+    accountTokenAndProjectId: d.AccountTokenAndProjectId
+  ): Promise<
+    d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
+  > => {
+    const userPromise = apiFunc.getUserByAccountToken(
+      accountTokenAndProjectId.accountToken
+    );
+    const projectPromise = apiFunc.getProject(
+      accountTokenAndProjectId.projectId
+    );
+    const user = await userPromise;
+    if (user._ === "Nothing") {
+      throw new Error("invalid account token");
+    }
+    const project = await projectPromise;
+    if (project.data._ === "Nothing") {
+      throw new Error("invalid project id");
+    }
+    if (project.data.value.createUserId !== user.value.id) {
+      throw new Error("user can not edit this d.Project");
+    }
+    const newTypePart: d.TypePart = {
+      name: "NewType",
+      description: "",
+      attribute: d.Maybe.Nothing(),
+      projectId: accountTokenAndProjectId.projectId,
+      typeParameterList: [],
+      body: d.TypePartBody.Sum([]),
+    };
+    await database
+      .collection("typePart")
+      .doc(createRandomId() as d.TypePartId)
+      .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
+    return apiFunc.getTypePartByProjectId(accountTokenAndProjectId.projectId);
+  },
+  setTypePartName: async (request) => {
+    const typePartDocumentSnapshot = await database
+      .collection("typePart")
+      .doc(request.typePartId)
+      .get();
+    const typePartData = typePartDocumentSnapshot.data();
+    if (typePartData === undefined) {
+      return {
+        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    const projectDocumentSnapshot = await database
+      .collection("project")
+      .doc(typePartData.projectId)
+      .get();
+    const projectData = projectDocumentSnapshot.data();
+    // 型パーツの所属するプロジェクトがない (構造エラー)
+    if (projectData === undefined) {
+      throw new Error(
+        "型パーツの所属するプロジェクトが存在しない projectId = " +
+          typePartData.projectId +
+          ", typePartId = " +
+          request.typePartId
+      );
+    }
+    const account = await apiFunc.getUserByAccountToken(request.accountToken);
+    // アカウントトークンが不正だった
+    if (account._ === "Nothing") {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
+    if (account.value.id !== projectData.createUserId) {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    database.collection("typePart").doc(request.typePartId).update({
+      name: request.name,
+    });
+    return apiFunc.getTypePartByProjectId(typePartData.projectId);
+  },
+  setTypePartDescription: async (request) => {
+    const typePartDocumentSnapshot = await database
+      .collection("typePart")
+      .doc(request.typePartId)
+      .get();
+    const typePartData = typePartDocumentSnapshot.data();
+    if (typePartData === undefined) {
+      return {
+        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    const projectDocumentSnapshot = await database
+      .collection("project")
+      .doc(typePartData.projectId)
+      .get();
+    const projectData = projectDocumentSnapshot.data();
+    // 型パーツの所属するプロジェクトがない (構造エラー)
+    if (projectData === undefined) {
+      throw new Error(
+        "型パーツの所属するプロジェクトが存在しない projectId = " +
+          typePartData.projectId +
+          ", typePartId = " +
+          request.typePartId
+      );
+    }
+    const account = await apiFunc.getUserByAccountToken(request.accountToken);
+    // アカウントトークンが不正だった
+    if (account._ === "Nothing") {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
+    if (account.value.id !== projectData.createUserId) {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    database.collection("typePart").doc(request.typePartId).update({
+      description: request.description,
+    });
+    return apiFunc.getTypePartByProjectId(typePartData.projectId);
+  },
+
+  setTypePartBody: async (request) => {
+    const typePartDocumentSnapshot = await database
+      .collection("typePart")
+      .doc(request.typePartId)
+      .get();
+    const typePartData = typePartDocumentSnapshot.data();
+    if (typePartData === undefined) {
+      return {
+        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    const projectDocumentSnapshot = await database
+      .collection("project")
+      .doc(typePartData.projectId)
+      .get();
+    const projectData = projectDocumentSnapshot.data();
+    // 型パーツの所属するプロジェクトがない (構造エラー)
+    if (projectData === undefined) {
+      throw new Error(
+        "型パーツの所属するプロジェクトが存在しない projectId = " +
+          typePartData.projectId +
+          ", typePartId = " +
+          request.typePartId
+      );
+    }
+    const account = await apiFunc.getUserByAccountToken(request.accountToken);
+    // アカウントトークンが不正だった
+    if (account._ === "Nothing") {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
+    if (account.value.id !== projectData.createUserId) {
+      return {
+        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    database.collection("typePart").doc(request.typePartId).update({
+      typePartBody: request.typePartBody,
+    });
+    return apiFunc.getTypePartByProjectId(typePartData.projectId);
+  },
+};

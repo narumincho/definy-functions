@@ -71,7 +71,7 @@ const getCoverImageUrlAndDescription = async (
 ): Promise<{ imageUrl: URL; description: string; isNotFound: boolean }> => {
   switch (location._) {
     case "Project": {
-      const projectResource = await lib.getProject(location.projectId);
+      const projectResource = await lib.apiFunc.getProject(location.projectId);
       if (projectResource.data._ === "Just") {
         return {
           imageUrl: getFileUrl(projectResource.data.value.imageHash),
@@ -88,7 +88,7 @@ const getCoverImageUrlAndDescription = async (
       };
     }
     case "User": {
-      const user = await lib.getUser(location.userId);
+      const user = await lib.apiFunc.getUser(location.userId);
       if (user.data._ === "Just") {
         return {
           imageUrl: getFileUrl(user.data.value.imageHash),
