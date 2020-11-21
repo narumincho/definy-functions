@@ -1,0 +1,22 @@
+name: type check test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  type-check-and-build-test:
+    name: type check and build test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v2
+      - name: setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: "12.x"
+      - name: Install npm dependencies (npm ci)
+        run: npm ci
+      - name: type check
+        run: tsc --project source/tsconfig.json --noEmit
