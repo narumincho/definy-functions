@@ -678,11 +678,7 @@ export const apiFunc: {
       getTime: firestoreTimestampToTime(documentSnapshot.readTime),
     };
   },
-  addTypePart: async (
-    accountTokenAndProjectId: d.AccountTokenAndProjectId
-  ): Promise<
-    d.WithTime<d.Maybe<d.List<d.IdAndData<d.TypePartId, d.TypePart>>>>
-  > => {
+  addTypePart: async (accountTokenAndProjectId: d.AccountTokenAndProjectId) => {
     const userPromise = apiFunc.getUserByAccountToken(
       accountTokenAndProjectId.accountToken
     );
@@ -708,11 +704,15 @@ export const apiFunc: {
       typeParameterList: [],
       body: d.TypePartBody.Sum([]),
     };
+    const newTypePartId = createRandomId() as d.TypePartId;
     await database
       .collection("typePart")
-      .doc(createRandomId() as d.TypePartId)
+      .doc(newTypePartId)
       .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
-    return apiFunc.getTypePartByProjectId(accountTokenAndProjectId.projectId);
+    return {
+      data: d.Maybe.Just({ id: newTypePartId, data: newTypePart }),
+      getTime: util.timeFromDate(new Date()),
+    };
   },
   setTypePartList: async (request) => {
     const projectData = await apiFunc.getProject(request.projectId);
