@@ -630,10 +630,9 @@ export const apiFunc: {
       d.ProjectId,
       ProjectData
     > = await database.collection("project").limit(50).get();
-    const documentList: ReadonlyArray<typedFirestore.QueryDocumentSnapshot<
-      d.ProjectId,
-      ProjectData
-    >> = querySnapshot.docs;
+    const documentList: ReadonlyArray<
+      typedFirestore.QueryDocumentSnapshot<d.ProjectId, ProjectData>
+    > = querySnapshot.docs;
     const getTime = firestoreTimestampToTime(querySnapshot.readTime);
     return {
       data: documentList.map((document) => ({
@@ -715,143 +714,52 @@ export const apiFunc: {
       .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
     return apiFunc.getTypePartByProjectId(accountTokenAndProjectId.projectId);
   },
-  setTypePartName: async (request) => {
-    const typePartDocumentSnapshot = await database
-      .collection("typePart")
-      .doc(request.typePartId)
-      .get();
-    const typePartData = typePartDocumentSnapshot.data();
-    if (typePartData === undefined) {
+  setTypePartList: async (request) => {
+    const projectData = await apiFunc.getProject(request.projectId);
+    // プロジェクトが存在しなかった
+    if (projectData.data._ === "Nothing") {
       return {
-        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
+        getTime: projectData.getTime,
         data: d.Maybe.Nothing(),
       };
-    }
-    const projectDocumentSnapshot = await database
-      .collection("project")
-      .doc(typePartData.projectId)
-      .get();
-    const projectData = projectDocumentSnapshot.data();
-    // 型パーツの所属するプロジェクトがない (構造エラー)
-    if (projectData === undefined) {
-      throw new Error(
-        "型パーツの所属するプロジェクトが存在しない projectId = " +
-          typePartData.projectId +
-          ", typePartId = " +
-          request.typePartId
-      );
     }
     const account = await apiFunc.getUserByAccountToken(request.accountToken);
     // アカウントトークンが不正だった
     if (account._ === "Nothing") {
       return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        getTime: projectData.getTime,
         data: d.Maybe.Nothing(),
       };
     }
     // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
-    if (account.value.id !== projectData.createUserId) {
+    if (account.value.id !== projectData.data.value.createUserId) {
       return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
+        getTime: projectData.getTime,
         data: d.Maybe.Nothing(),
       };
     }
-    database.collection("typePart").doc(request.typePartId).update({
-      name: request.name,
-    });
-    return apiFunc.getTypePartByProjectId(typePartData.projectId);
-  },
-  setTypePartDescription: async (request) => {
-    const typePartDocumentSnapshot = await database
-      .collection("typePart")
-      .doc(request.typePartId)
-      .get();
-    const typePartData = typePartDocumentSnapshot.data();
-    if (typePartData === undefined) {
-      return {
-        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    const projectDocumentSnapshot = await database
-      .collection("project")
-      .doc(typePartData.projectId)
-      .get();
-    const projectData = projectDocumentSnapshot.data();
-    // 型パーツの所属するプロジェクトがない (構造エラー)
-    if (projectData === undefined) {
-      throw new Error(
-        "型パーツの所属するプロジェクトが存在しない projectId = " +
-          typePartData.projectId +
-          ", typePartId = " +
-          request.typePartId
-      );
-    }
-    const account = await apiFunc.getUserByAccountToken(request.accountToken);
-    // アカウントトークンが不正だった
-    if (account._ === "Nothing") {
-      return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
-    if (account.value.id !== projectData.createUserId) {
-      return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    database.collection("typePart").doc(request.typePartId).update({
-      description: request.description,
-    });
-    return apiFunc.getTypePartByProjectId(typePartData.projectId);
-  },
+    await Promise.all(
+      request.typePartList.map(async ({ id, data }) => {
+        const typePartDocSnapshot = await database
+          .collection("typePart")
+          .doc(id)
+          .get();
+        const typePartDoc = typePartDocSnapshot.data();
+        if (typePartDoc === undefined) {
+          throw new Error("unknown typePart. typePartId=" + id);
+        }
+        if (typePartDoc.projectId !== request.projectId) {
+          throw new Error(
+            "typePart project is not same. projectId=" +
+              request.projectId +
+              "   typePartId" +
+              id
+          );
+        }
+        await database.collection("typePart").doc(id).update(data);
+      })
+    );
 
-  setTypePartBody: async (request) => {
-    const typePartDocumentSnapshot = await database
-      .collection("typePart")
-      .doc(request.typePartId)
-      .get();
-    const typePartData = typePartDocumentSnapshot.data();
-    if (typePartData === undefined) {
-      return {
-        getTime: firestoreTimestampToTime(typePartDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    const projectDocumentSnapshot = await database
-      .collection("project")
-      .doc(typePartData.projectId)
-      .get();
-    const projectData = projectDocumentSnapshot.data();
-    // 型パーツの所属するプロジェクトがない (構造エラー)
-    if (projectData === undefined) {
-      throw new Error(
-        "型パーツの所属するプロジェクトが存在しない projectId = " +
-          typePartData.projectId +
-          ", typePartId = " +
-          request.typePartId
-      );
-    }
-    const account = await apiFunc.getUserByAccountToken(request.accountToken);
-    // アカウントトークンが不正だった
-    if (account._ === "Nothing") {
-      return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
-    if (account.value.id !== projectData.createUserId) {
-      return {
-        getTime: firestoreTimestampToTime(projectDocumentSnapshot.readTime),
-        data: d.Maybe.Nothing(),
-      };
-    }
-    database.collection("typePart").doc(request.typePartId).update({
-      typePartBody: request.typePartBody,
-    });
-    return apiFunc.getTypePartByProjectId(typePartData.projectId);
+    return apiFunc.getTypePartByProjectId(request.projectId);
   },
 };
