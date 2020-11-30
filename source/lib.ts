@@ -509,6 +509,17 @@ const typePartToDBType = (
   typePartBody: typePart.body,
 });
 
+const typePartToDBTypeWithoutCreateTime = (
+  typePart: d.TypePart
+): Omit<TypePartData, "createTime"> => ({
+  name: typePart.name,
+  description: typePart.description,
+  attribute: typePart.attribute,
+  typeParameterList: typePart.typeParameterList,
+  projectId: typePart.projectId,
+  typePartBody: typePart.body,
+});
+
 type ApiCodecType = typeof apiCodec;
 
 type GetCodecType<codec> = codec extends d.Codec<infer t> ? t : never;
@@ -739,25 +750,30 @@ export const apiFunc: {
       };
     }
     await Promise.all(
-      request.typePartList.map(async ({ id, data }) => {
-        const typePartDocSnapshot = await database
-          .collection("typePart")
-          .doc(id)
-          .get();
-        const typePartDoc = typePartDocSnapshot.data();
-        if (typePartDoc === undefined) {
-          throw new Error("unknown typePart. typePartId=" + id);
+      request.typePartList.map(
+        async ({ id, data }): Promise<void> => {
+          const typePartDocSnapshot = await database
+            .collection("typePart")
+            .doc(id)
+            .get();
+          const typePartDoc = typePartDocSnapshot.data();
+          if (typePartDoc === undefined) {
+            throw new Error("unknown typePart. typePartId=" + id);
+          }
+          if (typePartDoc.projectId !== request.projectId) {
+            throw new Error(
+              "typePart project is not same. projectId=" +
+                request.projectId +
+                "   typePartId" +
+                id
+            );
+          }
+          await database
+            .collection("typePart")
+            .doc(id)
+            .update(typePartToDBTypeWithoutCreateTime(data));
         }
-        if (typePartDoc.projectId !== request.projectId) {
-          throw new Error(
-            "typePart project is not same. projectId=" +
-              request.projectId +
-              "   typePartId" +
-              id
-          );
-        }
-        await database.collection("typePart").doc(id).update(data);
-      })
+      )
     );
 
     return apiFunc.getTypePartByProjectId(request.projectId);
