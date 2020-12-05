@@ -19,10 +19,10 @@ export const html = async (
       coverImageUrl: coverImageUrlAndDescription.imageUrl,
       description: coverImageUrlAndDescription.description,
       scriptUrlList: [new URL((core.releaseOrigin as string) + "/main.js")],
-      styleUrlList: [new URL("https://definy.app/style.css")],
+      styleUrlList: [],
       javaScriptMustBeAvailable: true,
       twitterCard: "SummaryCard",
-      language: "Japanese",
+      language: urlData.language,
       manifestPath: ["manifest.json"],
       url: new URL(normalizedUrl.toString()),
       style: `/*
