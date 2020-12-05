@@ -22,7 +22,7 @@ export const html = async (
       styleUrlList: [new URL("https://definy.app/style.css")],
       javaScriptMustBeAvailable: true,
       twitterCard: "SummaryCard",
-      language: "Japanese",
+      language: urlData.language,
       manifestPath: ["manifest.json"],
       url: new URL(normalizedUrl.toString()),
       style: `/*
