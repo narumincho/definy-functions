@@ -520,6 +520,28 @@ const typePartToDBTypeWithoutCreateTime = (
   typePartBody: typePart.body,
 });
 
+const addTypePart = async (
+  projectId: d.ProjectId
+): Promise<d.IdAndData<d.TypePartId, d.TypePart>> => {
+  const newTypePart: d.TypePart = {
+    name: "NewType",
+    description: "",
+    attribute: d.Maybe.Nothing(),
+    projectId,
+    typeParameterList: [],
+    body: d.TypePartBody.Sum([]),
+  };
+  const newTypePartId = createRandomId() as d.TypePartId;
+  await database
+    .collection("typePart")
+    .doc(newTypePartId)
+    .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
+  return {
+    id: newTypePartId,
+    data: newTypePart,
+  };
+};
+
 type ApiCodecType = typeof apiCodec;
 
 type GetCodecType<codec> = codec extends d.Codec<infer t> ? t : never;
@@ -707,21 +729,8 @@ export const apiFunc: {
     if (project.data.value.createUserId !== user.value.id) {
       throw new Error("user can not edit this d.Project");
     }
-    const newTypePart: d.TypePart = {
-      name: "NewType",
-      description: "",
-      attribute: d.Maybe.Nothing(),
-      projectId: accountTokenAndProjectId.projectId,
-      typeParameterList: [],
-      body: d.TypePartBody.Sum([]),
-    };
-    const newTypePartId = createRandomId() as d.TypePartId;
-    await database
-      .collection("typePart")
-      .doc(newTypePartId)
-      .set(typePartToDBType(newTypePart, admin.firestore.Timestamp.now()));
     return {
-      data: d.Maybe.Just({ id: newTypePartId, data: newTypePart }),
+      data: d.Maybe.Just(await addTypePart(accountTokenAndProjectId.projectId)),
       getTime: util.timeFromDate(new Date()),
     };
   },
@@ -749,6 +758,60 @@ export const apiFunc: {
         data: d.Maybe.Nothing(),
       };
     }
+    await Promise.all(
+      request.typePartList.map(
+        async ({ id, data }): Promise<void> => {
+          const typePartDocSnapshot = await database
+            .collection("typePart")
+            .doc(id)
+            .get();
+          const typePartDoc = typePartDocSnapshot.data();
+          if (typePartDoc === undefined) {
+            throw new Error("unknown typePart. typePartId=" + id);
+          }
+          if (typePartDoc.projectId !== request.projectId) {
+            throw new Error(
+              "typePart project is not same. projectId=" +
+                request.projectId +
+                "   typePartId" +
+                id
+            );
+          }
+          await database
+            .collection("typePart")
+            .doc(id)
+            .update(typePartToDBTypeWithoutCreateTime(data));
+        }
+      )
+    );
+
+    return apiFunc.getTypePartByProjectId(request.projectId);
+  },
+  setTypePartListAndAddTypePart: async (request) => {
+    const projectData = await apiFunc.getProject(request.projectId);
+    // プロジェクトが存在しなかった
+    if (projectData.data._ === "Nothing") {
+      return {
+        getTime: projectData.getTime,
+        data: d.Maybe.Nothing(),
+      };
+    }
+    const account = await apiFunc.getUserByAccountToken(request.accountToken);
+    // アカウントトークンが不正だった
+    if (account._ === "Nothing") {
+      return {
+        getTime: projectData.getTime,
+        data: d.Maybe.Nothing(),
+      };
+    }
+    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
+    if (account.value.id !== projectData.data.value.createUserId) {
+      return {
+        getTime: projectData.getTime,
+        data: d.Maybe.Nothing(),
+      };
+    }
+    await addTypePart(request.projectId);
     await Promise.all(
       request.typePartList.map(
         async ({ id, data }): Promise<void> => {
