@@ -3,24 +3,26 @@ import * as d from "definy-core/source/data";
 import * as lib from "./lib";
 import * as nHtml from "@narumincho/html";
 
+/**
+ * OGP の 情報が含まれている HTML を返す
+ */
 export const html = async (
   urlData: d.UrlData,
   normalizedUrl: URL
-): Promise<{ html: nHtml.Html; isNotFound: boolean }> => {
+): Promise<{ view: nHtml.view.View<never>; isNotFound: boolean }> => {
   const coverImageUrlAndDescription = await getCoverImageUrlAndDescription(
     urlData.location,
     urlData.language
   );
   return {
-    html: {
+    view: {
       appName: "Definy",
       pageName: "Definy",
-      iconPath: ["icon"],
+      iconPath: "/icon",
       coverImageUrl: coverImageUrlAndDescription.imageUrl,
       description: coverImageUrlAndDescription.description,
       scriptUrlList: [new URL((core.releaseOrigin as string) + "/main.js")],
       styleUrlList: [],
-      javaScriptMustBeAvailable: true,
       twitterCard: "SummaryCard",
       language: urlData.language,
       manifestPath: ["manifest.json"],
@@ -52,7 +54,9 @@ body {
     box-sizing: border-box;
     color: white;
 }`,
-      body: [nHtml.div({}, loadingMessage(urlData.language))],
+      bodyClass: "dummy",
+      themeColor: undefined,
+      children: nHtml.view.childrenText(loadingMessage(urlData.language)),
     },
     isNotFound: false,
   };
