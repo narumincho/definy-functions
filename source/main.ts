@@ -38,7 +38,7 @@ export const html = functions.https.onRequest(async (request, response) => {
 
   response.status(htmlAndIsNotFound.isNotFound ? 404 : 200);
   response.setHeader("content-type", "text/html");
-  response.send(nHtml.toString(htmlAndIsNotFound.html));
+  response.send(nHtml.toString.toString(htmlAndIsNotFound.view));
 });
 
 /*
