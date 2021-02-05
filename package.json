@@ -16,9 +16,9 @@
     "node": "12"
   },
   "dependencies": {
-    "@narumincho/html": "0.2.1",
+    "@narumincho/html": "0.2.2",
     "axios": "0.21.1",
-    "definy-core": "0.2.14",
+    "definy-core": "0.2.16",
     "firebase-admin": "9.4.2",
     "firebase-functions": "3.13.1",
     "jimp": "0.16.1",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@types/jsonwebtoken": "8.5.0",
-    "@types/node": "14.14.23",
+    "@types/node": "14.14.25",
     "@typescript-eslint/eslint-plugin": "4.14.2",
     "@typescript-eslint/parser": "4.14.2",
     "eslint": "7.19.0",

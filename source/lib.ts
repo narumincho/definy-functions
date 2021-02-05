@@ -841,4 +841,54 @@ export const apiFunc: {
 
     return apiFunc.getTypePartByProjectId(request.projectId);
   },
+  setTypePart: async (request) => {
+    const typePartSnapshot = await database
+      .collection("typePart")
+      .doc(request.typePartId)
+      .get();
+    const typePart = typePartSnapshot.data();
+
+    // 型パーツが存在していなかった
+    if (typePart === undefined) {
+      return {
+        getTime: firestoreTimestampToTime(typePartSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+    const account = await apiFunc.getUserByAccountToken(request.accountToken);
+    // アカウントトークンが不正だった
+    if (account._ === "Nothing") {
+      return {
+        getTime: firestoreTimestampToTime(typePartSnapshot.readTime),
+        data: d.Maybe.Nothing(),
+      };
+    }
+
+    const projectData = await apiFunc.getProject(typePart.projectId);
+    // プロジェクトが存在しなかった (ありえないエラー)
+    if (projectData.data._ === "Nothing") {
+      return {
+        getTime: projectData.getTime,
+        data: d.Maybe.Nothing(),
+      };
+    }
+
+    // 型パーツを編集するアカウントとプロジェクトを作ったアカウントが違う
+    if (account.value.id !== projectData.data.value.createUserId) {
+      return {
+        getTime: projectData.getTime,
+        data: d.Maybe.Nothing(),
+      };
+    }
+
+    const writeData = await database
+      .collection("typePart")
+      .doc(request.typePartId)
+      .update(typePartToDBTypeWithoutCreateTime(request.typePart));
+
+    return {
+      getTime: firestoreTimestampToTime(writeData.writeTime),
+      data: d.Maybe.Just(request.typePart),
+    };
+  },
 };
